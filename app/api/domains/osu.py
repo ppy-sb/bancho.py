@@ -25,6 +25,7 @@ from urllib.parse import unquote_plus
 
 import bcrypt
 import databases.core
+import requests
 from fastapi import status
 from fastapi.datastructures import FormData
 from fastapi.datastructures import UploadFile
@@ -1691,6 +1692,7 @@ async def get_screenshot(
 
 @router.get("/d/{map_set_id}")
 async def get_osz(
+    request: Request,
     map_set_id: str = Path(...),
 ):
     """Handle a map download request (osu.ppy.sh/d/*)."""
@@ -1702,9 +1704,14 @@ async def get_osz(
         query_str = f"download/{map_set_id}?n={int(not no_video)}"
     else:
         query_str = f"d/{map_set_id}"
+    url = f"{app.settings.MIRROR_URL}/{query_str}"
+
+    r = requests.get(f"http://ip-api.com/json/{request.client.host}").json()
+    if (r['status'] == 'success') & (r['country'] == "China"):
+        url = f'https://dl.sayobot.cn/beatmaps/download/novideo/{map_set_id}'
 
     return RedirectResponse(
-        url=f"{app.settings.MIRROR_URL}/{query_str}",
+        url=url,
         status_code=status.HTTP_301_MOVED_PERMANENTLY,
     )
 

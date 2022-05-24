@@ -133,14 +133,15 @@ class RankedStatus(IntEnum):
     @functools.cache
     def from_osuapi(cls, osuapi_status: int) -> RankedStatus:
         """Convert from osu!api status."""
+        # unranked will be redirected to approved
         mapping: Mapping[int, RankedStatus] = defaultdict(
             lambda: cls.UpdateAvailable,
             {
-                -2: cls.Pending,  # graveyard
-                -1: cls.Pending,  # wip
-                0: cls.Pending,
+                -2: cls.Approved,  # graveyard -> approved
+                -1: cls.Approved,  # wip -> approved
+                0: cls.Approved,   # unranked -> approved
                 1: cls.Ranked,
-                2: cls.Approved,
+                2: cls.Ranked,     # approved -> ranked
                 3: cls.Qualified,
                 4: cls.Loved,
             },
@@ -334,7 +335,7 @@ class Beatmap:
     @property
     def awards_ranked_pp(self) -> bool:
         """Return whether the map's status awards ranked pp for scores."""
-        return self.status in (RankedStatus.Ranked, RankedStatus.Approved)
+        return self.status == RankedStatus.Ranked
 
     @property  # perhaps worth caching some of?
     def as_dict(self) -> dict[str, object]:
