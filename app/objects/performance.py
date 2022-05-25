@@ -20,5 +20,8 @@ def calculate(mode_vn: int, osu_file_path: str, params: List[ScoreParams]) -> Li
         # Transform map should not gather any pp
         if result.mode != mode_vn:
             result.pp = 0
+        # To keep pp value away from database limitation.
+        if result.pp > 8192:
+            result.pp = 8192
         return_value.append(result)
     return return_value
