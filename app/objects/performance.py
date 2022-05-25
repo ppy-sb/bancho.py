@@ -14,9 +14,7 @@ def calculate(mode_vn: int, osu_file_path: str, params: List[ScoreParams]) -> Li
             param.mods &= ~Mods.SCOREV2
         if param.mods & Mods.NOFAIL:
             param.mods &= ~Mods.NOFAIL
-        print(param)
         (result,) = calculator.calculate(param)
-        print(result)
         # Transform map should not gather any pp
         if result.mode != mode_vn:
             result.pp = 0
