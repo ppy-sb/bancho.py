@@ -372,7 +372,7 @@ async def api_get_player_scores(
         params["mods"] = mods
 
     if scope == "best":
-        allowed_statuses = [2, 3]
+        allowed_statuses = [2]  # only ranked should be shown
 
         if include_loved:
             allowed_statuses.append(5)
