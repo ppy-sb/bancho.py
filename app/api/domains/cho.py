@@ -804,38 +804,6 @@ async def login(
                     data += app.packets.user_presence(o)
                     data += app.packets.user_stats(o)
 
-        # the player may have been sent mail while offline,
-        # enqueue any messages from their respective authors.
-        mail_rows = await db_conn.fetch_all(
-            "SELECT m.`msg`, m.`time`, m.`from_id`, "
-            "(SELECT name FROM users WHERE id = m.`from_id`) AS `from`, "
-            "(SELECT name FROM users WHERE id = m.`to_id`) AS `to` "
-            "FROM `mail` m WHERE m.`to_id` = :to AND m.`read` = 0",
-            {"to": p.id},
-        )
-
-        if mail_rows:
-            sent_to = set()  # ids
-
-            for msg in mail_rows:
-                if msg["from"] not in sent_to:
-                    data += app.packets.send_message(
-                        sender=msg["from"],
-                        msg="Unread messages",
-                        recipient=msg["to"],
-                        sender_id=msg["from_id"],
-                    )
-                    sent_to.add(msg["from"])
-
-                msg_time = datetime.fromtimestamp(msg["time"])
-
-                data += app.packets.send_message(
-                    sender=msg["from"],
-                    msg=f'[{msg_time:%a %b %d @ %H:%M%p}] {msg["msg"]}',
-                    recipient=msg["to"],
-                    sender_id=msg["from_id"],
-                )
-
         if not p.priv & Privileges.VERIFIED:
             # this is the player's first login, verify their
             # account & send info about the server/its usage.
