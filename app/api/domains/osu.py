@@ -464,7 +464,7 @@ async def osuSearchHandler(
         result = await resp.json()
 
         if USING_CHIMU:
-            if result["code"] != 0:
+            if result["code"] != 200:
                 return b"-1\nFailed to retrieve data from the beatmap mirror."
 
             result = result["data"]
@@ -1706,7 +1706,7 @@ async def get_osz(
         query_str = f"d/{map_set_id}"
     url = f"{app.settings.MIRROR_URL}/{query_str}"
 
-    r = requests.get(f"http://ip-api.com/json/{request.client.host}").json()
+    r = requests.get(f"http://ip-api.com/json/{request.headers.get('x-real-ip')}").json()
     if (r['status'] == 'success') & (r['country'] == "China"):
         url = f'https://dl.sayobot.cn/beatmaps/download/novideo/{map_set_id}'
 
