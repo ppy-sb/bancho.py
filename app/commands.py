@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import asyncio
 import copy
 import importlib
-import math
 import os
 import pprint
 import random
@@ -60,6 +58,7 @@ from app.objects.match import MatchTeamTypes
 from app.objects.match import MatchWinConditions
 from app.objects.match import SlotStatus
 from app.objects.player import Player
+from app.logging import log
 from app.objects.score import SubmissionStatus
 from app.utils import make_safe_name
 from app.utils import seconds_readable
@@ -102,10 +101,10 @@ class CommandSet:
         self.commands: list[Command] = []
 
     def add(
-        self,
-        priv: Privileges,
-        aliases: list[str] = [],
-        hidden: bool = False,
+            self,
+            priv: Privileges,
+            aliases: list[str] = [],
+            hidden: bool = False,
     ) -> Callable[[Callback], Callback]:
         def wrapper(f: Callback) -> Callback:
             self.commands.append(
@@ -113,7 +112,7 @@ class CommandSet:
                     # NOTE: this method assumes that functions without any
                     # triggers will be named like '{self.trigger}_{trigger}'.
                     triggers=(
-                        [f.__name__.removeprefix(f"{self.trigger}_").strip()] + aliases
+                            [f.__name__.removeprefix(f"{self.trigger}_").strip()] + aliases
                     ),
                     callback=f,
                     priv=priv,
@@ -141,9 +140,9 @@ command_sets = [
 
 
 def command(
-    priv: Privileges,
-    aliases: list[str] = [],
-    hidden: bool = False,
+        priv: Privileges,
+        aliases: list[str] = [],
+        hidden: bool = False,
 ) -> Callable[[Callback], Callback]:
     def wrapper(f: Callback) -> Callback:
         regular_commands.append(
@@ -280,8 +279,8 @@ async def changename(ctx: Context) -> Optional[str]:
     safe_name = make_safe_name(name)
 
     if await app.state.services.database.fetch_one(
-        "SELECT 1 FROM users WHERE safe_name = :safe_name",
-        {"safe_name": safe_name},
+            "SELECT 1 FROM users WHERE safe_name = :safe_name",
+            {"safe_name": safe_name},
     ):
         return "Username already taken by another player."
 
@@ -376,10 +375,10 @@ async def top(ctx: Context) -> Optional[str]:
         return f'Valid gamemodes: {", ".join(GAMEMODE_REPR_LIST)}.'
 
     if ctx.args[0] in (
-        "rx!mania",
-        "ap!taiko",
-        "ap!catch",
-        "ap!mania",
+            "rx!mania",
+            "ap!taiko",
+            "ap!catch",
+            "ap!mania",
     ):
         return "Impossible gamemode combination."
 
@@ -389,7 +388,7 @@ async def top(ctx: Context) -> Optional[str]:
 
         # specific player provided
         if not (
-            p := await app.state.sessions.players.from_cache_or_sql(name=ctx.args[1])
+                p := await app.state.sessions.players.from_cache_or_sql(name=ctx.args[1])
         ):
             return "Player not found."
     else:
@@ -431,8 +430,8 @@ class ParsingError(str):
 
 
 def parse__with__command_args(
-    mode: int,
-    args: Sequence[str],
+        mode: int,
+        args: Sequence[str],
 ) -> Union[Mapping[str, Any], ParsingError]:
     """Parse arguments for the !with command."""
 
@@ -463,9 +462,9 @@ def parse__with__command_args(
                 # optional prefix/suffix, mods & accuracy
                 arg_stripped = arg.removeprefix("+").removesuffix("%")
                 if (
-                    mods is None
-                    and arg_stripped.isalpha()
-                    and len(arg_stripped) % 2 == 0
+                        mods is None
+                        and arg_stripped.isalpha()
+                        and len(arg_stripped) % 2 == 0
                 ):
                     mods = Mods.from_modstr(arg_stripped)
                     mods = mods.filter_invalid_combos(mode)
@@ -658,9 +657,9 @@ def status_to_id(s: str) -> int:
 async def _map(ctx: Context) -> Optional[str]:
     """Changes the ranked status of the most recently /np'ed map."""
     if (
-        len(ctx.args) != 2
-        or ctx.args[0] not in ("rank", "unrank", "love")
-        or ctx.args[1] not in ("set", "map")
+            len(ctx.args) != 2
+            or ctx.args[0] not in ("rank", "unrank", "love")
+            or ctx.args[1] not in ("set", "map")
     ):
         return "Invalid syntax: !map <rank/unrank/love> <map/set>"
 
@@ -874,8 +873,8 @@ async def user(ctx: Context) -> Optional[str]:
             return "Player not found."
 
     priv_list = [
-        priv.name for priv in Privileges if p.priv & priv and bin(priv).count("1") == 1
-    ][::-1]
+                    priv.name for priv in Privileges if p.priv & priv and bin(priv).count("1") == 1
+                ][::-1]
 
     if time.time() < p.last_np["timeout"]:
         last_np = p.last_np["bmap"].embed
@@ -931,6 +930,26 @@ async def restrict(ctx: Context) -> Optional[str]:
     await t.restrict(admin=ctx.player, reason=reason)
 
     return f"{t} was restricted."
+
+
+@command(Privileges.ADMINISTRATOR, hidden=True)
+async def recalc_rank(ctx: Context) -> Optional[str]:
+    async with app.state.services.database.connection() as cursor:
+        for row in await cursor.fetch_all("SELECT id FROM users"):
+            player = await app.state.sessions.players.from_cache_or_sql(id=row['id'])
+            async with app.state.services.database.connection() as db_conn:
+                await player.stats_from_sql_full(db_conn)
+                for mode, stats in player.stats.items():
+                    await app.state.services.redis.zadd(
+                        f"bancho:leaderboard:{mode.value}",
+                        {str(player.id): stats.pp},
+                    )
+                    await app.state.services.redis.zadd(
+                        f"bancho:leaderboard:{mode.value}:{player.geoloc['country']['acronym']}",
+                        {str(player.id): stats.pp},
+                    )
+        app.state.sessions.channels['#dev'].send_bot('Rank recalculation completed!')
+    return f"Calculation started."
 
 
 @command(Privileges.ADMINISTRATOR, hidden=True)
@@ -1047,9 +1066,9 @@ async def fakeusers(ctx: Context) -> Optional[str]:
     #       the implementation is pretty cursed.
 
     if (
-        len(ctx.args) != 2
-        or ctx.args[0] not in ("add", "rm")
-        or not ctx.args[1].isdecimal()
+            len(ctx.args) != 2
+            or ctx.args[0] not in ("add", "rm")
+            or not ctx.args[1].isdecimal()
     ):
         return "Invalid syntax: !fakeusers <add/rm> <amount>"
 
@@ -1145,7 +1164,7 @@ async def fakeusers(ctx: Context) -> Optional[str]:
         if amount > len_fake_users:
             return f"Too many! Only {len_fake_users} fake users remain."
 
-        to_remove = _fake_users[len_fake_users - amount :]
+        to_remove = _fake_users[len_fake_users - amount:]
         logout_packet_header = b"\x0c\x00\x00\x05\x00\x00\x00"
 
         for fake in to_remove:
@@ -1358,7 +1377,7 @@ async def server(ctx: Context) -> Optional[str]:
         trailer = "\n"
 
         model_names = Counter(
-            line[len(header) : -len(trailer)]
+            line[len(header): -len(trailer)]
             for line in f.readlines()
             if line.startswith("model name")
         )
@@ -1389,7 +1408,7 @@ async def server(ctx: Context) -> Optional[str]:
     reqs = (Path.cwd() / "requirements.txt").read_text().splitlines()
     requirements_info = "\n".join(
         " | ".join("{} v{}".format(*pkg.split("==")) for pkg in section)
-        for section in (reqs[i : i + 3] for i in range(0, len(reqs), 3))
+        for section in (reqs[i: i + 3] for i in range(0, len(reqs), 3))
     )
 
     return "\n".join(
@@ -1434,6 +1453,7 @@ if app.settings.DEVELOPER_MODE:
         if mod in installed_mods
     }
 
+
     @command(Privileges.DEVELOPER)
     async def py(ctx: Context) -> Optional[str]:
         """Allow for (async) access to the python interpreter."""
@@ -1462,7 +1482,6 @@ if app.settings.DEVELOPER_MODE:
 
         return ret
 
-
 """ Multiplayer commands
 # The commands below for multiplayer match management.
 # Most commands are open to player usage.
@@ -1470,7 +1489,7 @@ if app.settings.DEVELOPER_MODE:
 
 
 def ensure_match(
-    f: Callable[[Context, Match], Awaitable[Optional[R]]],
+        f: Callable[[Context, Match], Awaitable[Optional[R]]],
 ) -> Callable[[Context], Awaitable[Optional[R]]]:
     @wraps(f)
     async def wrapper(ctx: Context) -> Optional[R]:
@@ -1487,7 +1506,7 @@ def ensure_match(
             return None
 
         if f is not mp_help and (
-            ctx.player not in match.refs and not ctx.player.priv & Privileges.TOURNAMENT
+                ctx.player not in match.refs and not ctx.player.priv & Privileges.TOURNAMENT
         ):
             # doesn't have privs to use !mp commands (allow help).
             return None
@@ -2512,11 +2531,11 @@ async def clan_info(ctx: Context) -> Optional[str]:
 
     # get members privs from sql
     for row in await app.state.services.database.fetch_all(
-        "SELECT name, clan_priv "
-        "FROM users "
-        "WHERE clan_id = :clan_id "
-        "ORDER BY clan_priv DESC",
-        {"clan_id": clan.id},
+            "SELECT name, clan_priv "
+            "FROM users "
+            "WHERE clan_id = :clan_id "
+            "ORDER BY clan_priv DESC",
+            {"clan_id": clan.id},
     ):
         priv_str = ("Member", "Officer", "Owner")[row["clan_priv"] - 1]
         msg.append(f"[{priv_str}] {row['name']}")
@@ -2569,9 +2588,9 @@ class CommandResponse(TypedDict):
 
 
 async def process_commands(
-    p: Player,
-    target: Union["Channel", Player],
-    msg: str,
+        p: Player,
+        target: Union["Channel", Player],
+        msg: str,
 ) -> Optional[CommandResponse]:
     # response is either a CommandResponse if we hit a command,
     # or simply False if we don't have any command hits.
