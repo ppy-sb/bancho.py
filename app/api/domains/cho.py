@@ -477,6 +477,9 @@ async def login(
 
     # perform some validation & further parsing on the data
 
+    if login_data["osu_version"] == 'b20210125.1 SB Edition.x01':
+        login_data["osu_version"] = 'b20220421beta'
+
     match = regexes.OSU_VERSION.match(login_data["osu_version"])
     if match is None:
         return {
