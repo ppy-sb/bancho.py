@@ -189,46 +189,8 @@ async def fetch_geoloc_web(ip: IPAddress) -> Optional[Geolocation]:
 
 
 async def log_strange_occurrence(obj: object) -> None:
-    pickled_obj: bytes = pickle.dumps(obj)
-    uploaded = False
+    pass  # Why do we hope to keep these rubbish unreadable text
 
-    if app.settings.AUTOMATICALLY_REPORT_PROBLEMS:
-        # automatically reporting problems to cmyui's server
-        async with http.post(
-            url="https://log.cmyui.xyz/",
-            headers={
-                "Bancho-Version": app.settings.VERSION,
-                "Bancho-Domain": app.settings.DOMAIN,
-            },
-            data=pickled_obj,
-        ) as resp:
-            if resp.status == 200 and (await resp.read()) == b"ok":
-                uploaded = True
-                log("Logged strange occurrence to cmyui's server.", Ansi.LBLUE)
-                log("Thank you for your participation! <3", Rainbow)
-            else:
-                log(
-                    f"Autoupload to cmyui's server failed (HTTP {resp.status})",
-                    Ansi.LRED,
-                )
-
-    if not uploaded:
-        # log to a file locally, and prompt the user
-        while True:
-            log_file = STRANGE_LOG_DIR / f"strange_{secrets.token_hex(4)}.db"
-            if not log_file.exists():
-                break
-
-        log_file.touch(exist_ok=False)
-        log_file.write_bytes(pickled_obj)
-
-        log("Logged strange occurrence to", Ansi.LYELLOW, end=" ")
-        printc("/".join(log_file.parts[-4:]), Ansi.LBLUE)
-
-        log(
-            "Greatly appreciated if you could forward this to cmyui#0425 :)",
-            Ansi.LYELLOW,
-        )
 
 
 # dependency management
