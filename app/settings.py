@@ -20,6 +20,7 @@ REDIS_DSN: str = config("REDIS_DSN")
 OSU_API_KEY: Secret = config("OSU_API_KEY", cast=Secret)
 
 DOMAIN: str = config("DOMAIN", default="cmyui.xyz")
+ENABLE_SAYO: bool = config("ENABLE_SAYO", default=False, cast=bool)
 MIRROR_URL: str = config("MIRROR_URL", default="https://api.chimu.moe/v1")
 
 COMMAND_PREFIX: str = config("COMMAND_PREFIX", default="!")
