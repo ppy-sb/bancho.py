@@ -382,7 +382,7 @@ OFFLINE_NOTIFICATION = app.packets.notification(
     "some features will be unavailble.",
 )
 
-DELTA_90_DAYS = timedelta(days=90)
+DELTA_DAYS = timedelta(days=180)
 
 
 class LoginResponse(TypedDict):
@@ -498,14 +498,14 @@ async def login(
     )
 
     # disallow login for clients older than 90 days
-    if osu_version.date < (date.today() - DELTA_90_DAYS):
+    if osu_version.date < (date.today() - DELTA_DAYS):
         return {
             "osu_token": "client-too-old",
             "response_body": (
                     app.packets.version_update_forced() + app.packets.user_id(-2)
             ),
         }
-
+    
     running_under_wine = login_data["adapters_str"] == "runningunderwine"
     adapters = [a for a in login_data["adapters_str"][:-1].split(".")]
 
