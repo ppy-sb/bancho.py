@@ -105,9 +105,8 @@ async def bancho_handler(
 
     if osu_token is None:
         # the client is performing a login
-        async with app.state.sessions.players._lock:
-            async with app.state.services.database.connection() as db_conn:
-                login_data = await login(await request.body(), ip, db_conn)
+        async with app.state.services.database.connection() as db_conn:
+            login_data = await login(await request.body(), ip, db_conn)
 
         return Response(
             content=login_data["response_body"],
@@ -379,7 +378,7 @@ WELCOME_NOTIFICATION = app.packets.notification(
 
 OFFLINE_NOTIFICATION = app.packets.notification(
     "The server is currently running in offline mode; "
-    "some features will be unavailble.",
+    "some features will be unavailable.",
 )
 
 DELTA_DAYS = timedelta(days=180)

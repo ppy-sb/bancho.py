@@ -40,6 +40,7 @@ bancho.py is a ~15,000 line codebase built on the shoulder of giants.
 we aim to minimize our dependencies, but still rely on ones such as
 - python (programming language)
 - mysql (relational database)
+- redis (in memory database)
 - nginx (http(s) reverse proxy)
 - certbot (ssl certificate tool)
 - cmake and build-essential (build tools for c/c++)
@@ -197,7 +198,7 @@ if everything went well, you should be able to start your server up:
 
 and you should see something along the lines of:
 
-![ada](https://i.cmyui.xyz/ld-iZXysVXqwhM8.png)
+![tada](https://cdn.discordapp.com/attachments/616400094408736779/993705619498467369/ld-iZXysVXqwhM8.png)
 
 # Directory Structure
     .
