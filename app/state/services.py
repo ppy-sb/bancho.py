@@ -43,7 +43,7 @@ SQL_UPDATES_FILE = Path.cwd() / "migrations/migrations.sql"
 
 """ session objects """
 
-http: aiohttp.ClientSession
+http_client: aiohttp.ClientSession
 database = databases.Database(app.settings.DB_DSN)
 redis: aioredis.Redis = aioredis.from_url(app.settings.REDIS_DSN)
 
@@ -161,7 +161,7 @@ async def fetch_geoloc_web(ip: IPAddress) -> Optional[Geolocation]:
     """Fetch geolocation data based on ip (using ip-api)."""
     url = f"http://ip-api.com/line/{ip}"
 
-    async with http.get(url) as resp:
+    async with http_client.get(url) as resp:
         if not resp or resp.status != 200:
             log("Failed to get geoloc data: request failed.", Ansi.LRED)
             return None
@@ -191,6 +191,43 @@ async def fetch_geoloc_web(ip: IPAddress) -> Optional[Geolocation]:
 async def log_strange_occurrence(obj: object) -> None:
     pass  # Why do we hope to keep these rubbish unreadable text
 
+    if app.settings.AUTOMATICALLY_REPORT_PROBLEMS:
+        # automatically reporting problems to cmyui's server
+        async with http_client.post(
+            url="https://log.cmyui.xyz/",
+            headers={
+                "Bancho-Version": app.settings.VERSION,
+                "Bancho-Domain": app.settings.DOMAIN,
+            },
+            data=pickled_obj,
+        ) as resp:
+            if resp.status == 200 and (await resp.read()) == b"ok":
+                uploaded = True
+                log("Logged strange occurrence to cmyui's server.", Ansi.LBLUE)
+                log("Thank you for your participation! <3", Rainbow)
+            else:
+                log(
+                    f"Autoupload to cmyui's server failed (HTTP {resp.status})",
+                    Ansi.LRED,
+                )
+
+    if not uploaded:
+        # log to a file locally, and prompt the user
+        while True:
+            log_file = STRANGE_LOG_DIR / f"strange_{secrets.token_hex(4)}.db"
+            if not log_file.exists():
+                break
+
+        log_file.touch(exist_ok=False)
+        log_file.write_bytes(pickled_obj)
+
+        log("Logged strange occurrence to", Ansi.LYELLOW, end=" ")
+        printc("/".join(log_file.parts[-4:]), Ansi.LBLUE)
+
+        log(
+            "Greatly appreciated if you could forward this to cmyui#0425 :)",
+            Ansi.LYELLOW,
+        )
 
 
 # dependency management
@@ -260,7 +297,7 @@ async def _get_latest_dependency_versions() -> AsyncGenerator[
 
         # TODO: split up and do the requests asynchronously
         url = f"https://pypi.org/pypi/{dependency_name}/json"
-        async with http.get(url) as resp:
+        async with http_client.get(url) as resp:
             if resp.status == 200 and (json := await resp.json()):
                 latest_ver = Version.from_str(json["info"]["version"])
 

@@ -7,7 +7,7 @@
 bancho.py is an in-progress osu! server implementation for developers of all levels
 of experience interested in hosting their own osu private server instance(s).
 
-the project is developed primarily by the [osu!Akatsuki](https://akatsuki.pw/) team,
+the project is developed primarily by the [Akatsuki](https://akatsuki.pw/) team,
 and our aim is to create the most easily maintainable, reliable, and feature-rich
 osu! server implementation available.
 
@@ -50,13 +50,13 @@ as well as some others.
 # python3.9 is often not available natively,
 # but we can rely on deadsnakes to provide it.
 # https://github.com/deadsnakes/python3.9
-sudo add-apt-repository ppa:deadsnakes
+sudo add-apt-repository -y ppa:deadsnakes
 
 # install required programs for running bancho.py
-sudo apt install python3.9-dev python3.9-distutils \
-                 cmake build-essential \
-                 mysql-server redis-server \
-                 nginx certbot
+sudo apt install -y python3.9-dev python3.9-distutils \
+                    cmake build-essential \
+                    mysql-server redis-server \
+                    nginx certbot
 
 # install python's package manager, pip
 # it's used to install python-specific dependencies

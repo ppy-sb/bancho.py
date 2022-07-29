@@ -12,7 +12,7 @@ The English version: [[English]](https://github.com/osuAkatsuki/bancho.py/blob/m
 bancho.py 是一个还在被不断维护的osu!后端项目，不论你的水平如何，都
 可以去使用他来开一个自己的osu!私服！
 
-这个项目最初是由 [osu!Akatsuki](https://akatsuki.pw/) 团队开发的,我们的目标是创建一个非常容易
+这个项目最初是由 [Akatsuki](https://akatsuki.pw/) 团队开发的,我们的目标是创建一个非常容易
 维护并且功能很丰富的osu!私服的服务端！
 
 注意：bancho.py是一个后端！当你跟着下面的步骤部署完成后你可以正常登录
@@ -73,13 +73,13 @@ bancho.py 的代码库有大约15,000行，我们致力于减少我们需要的�
 # python3.9 现在并不能直接装,
 # 这里我们拿deadsnakes来搞
 # https://github.com/deadsnakes/python3.9
-sudo add-apt-repository ppa:deadsnakes
+sudo add-apt-repository -y ppa:deadsnakes
 
 # 安装所有的依赖(dependence)
-sudo apt install python3.9-dev python3.9-distutils \
-                 cmake build-essential \
-                 mysql-server redis-server \
-                 nginx certbot
+sudo apt install -y python3.9-dev python3.9-distutils \
+                    cmake build-essential \
+                    mysql-server redis-server \
+                    nginx certbot
 
 # 安装python的包管理器, pip
 # pip是用来安装和python有关的包

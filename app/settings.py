@@ -41,6 +41,7 @@ PP_CACHED_SCORES = [
 
 DISALLOWED_NAMES = config("DISALLOWED_NAMES", cast=CommaSeparatedStrings)
 DISALLOWED_PASSWORDS = config("DISALLOWED_PASSWORDS", cast=CommaSeparatedStrings)
+DISALLOW_OLD_CLIENTS = config("DISALLOW_OLD_CLIENTS", cast=bool)
 
 DISCORD_AUDIT_LOG_WEBHOOK = config("DISCORD_AUDIT_LOG_WEBHOOK")
 
@@ -56,4 +57,4 @@ DEVELOPER_MODE = config("DEVELOPER_MODE", cast=bool)
 ## WARNING touch this if you know how
 ##          the migrations system works.
 ##          you'll regret it.
-VERSION = "4.4.2"
+VERSION = "4.5.6"

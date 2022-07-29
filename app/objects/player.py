@@ -4,11 +4,11 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import date
+from enum import Enum
 from enum import IntEnum
 from enum import unique
 from functools import cached_property
 from typing import Any
-from typing import Literal
 from typing import Optional
 from typing import TYPE_CHECKING
 from typing import TypedDict
@@ -145,6 +145,14 @@ class LastNp(TypedDict):
     timeout: float
 
 
+class OsuStream(str, Enum):
+    STABLE = "stable"
+    BETA = "beta"
+    CUTTINGEDGE = "cuttingedge"
+    TOURNEY = "tourney"
+    DEV = "dev"
+
+
 class OsuVersion:
     # b20200201.2cuttingedge
     # date = 2020/02/01
@@ -154,7 +162,7 @@ class OsuVersion:
         self,
         date: date,
         revision: Optional[int],  # TODO: should this be optional?
-        stream: Literal["stable", "beta", "cuttingedge", "tourney", "dev"],
+        stream: OsuStream,
     ) -> None:
         self.date = date
         self.revision = revision
@@ -330,40 +338,28 @@ class Player:
     def __repr__(self) -> str:
         return f"<{self.name} ({self.id})>"
 
-    @cached_property
+    @property
     def online(self) -> bool:
         return self.token != ""
 
-    @cached_property
+    @property
     def url(self) -> str:
         """The url to the player's profile."""
-        # NOTE: this is currently never wiped because
-        # domain & id cannot be changed in-game; if this
-        # ever changes, it will need to be wiped.
         return f"https://{app.settings.DOMAIN}/u/{self.id}"
 
-    @cached_property
+    @property
     def embed(self) -> str:
         """An osu! chat embed to the player's profile."""
-        # NOTE: this is currently never wiped because
-        # url & name cannot be changed in-game; if this
-        # ever changes, it will need to be wiped.
         return f"[{self.url} {self.name}]"
 
-    @cached_property
+    @property
     def avatar_url(self) -> str:
         """The url to the player's avatar."""
-        # NOTE: this is currently never wiped because
-        # domain & id cannot be changed in-game; if this
-        # ever changes, it will need to be wiped.
         return f"https://a.{app.settings.DOMAIN}/{self.id}"
 
-    @cached_property
+    @property
     def full_name(self) -> str:
         """The user's "full" name; including their clan tag."""
-        # NOTE: this is currently only wiped when the
-        # user leaves their clan; if name/clantag ever
-        # become changeable, it will need to be wiped.
         if self.clan:
             return f"[{self.clan.tag}] {self.name}"
         else:
@@ -385,7 +381,7 @@ class Player:
     def bancho_priv(self) -> ClientPrivileges:
         """The player's privileges according to the client."""
         ret = ClientPrivileges(0)
-        if self.priv & Privileges.NORMAL:
+        if self.priv & Privileges.UNRESTRICTED:
             ret |= ClientPrivileges.PLAYER
         if self.priv & Privileges.DONATOR:
             ret |= ClientPrivileges.SUPPORTER
@@ -397,17 +393,17 @@ class Player:
             ret |= ClientPrivileges.OWNER
         return ret
 
-    @cached_property
+    @property
     def restricted(self) -> bool:
         """Return whether the player is restricted."""
-        return not self.priv & Privileges.NORMAL
+        return not self.priv & Privileges.UNRESTRICTED
 
     @property
     def gm_stats(self) -> ModeData:
         """The player's stats in their currently selected mode."""
         return self.stats[self.status.mode]
 
-    @cached_property
+    @property
     def recent_score(self) -> Optional[Score]:
         """The player's most recently submitted score."""
         score = None
@@ -438,9 +434,6 @@ class Player:
         """Log `self` out of the server."""
         # invalidate the user's token.
         self.token = ""
-
-        if "online" in self.__dict__:
-            del self.online  # wipe cached_property
 
         # leave multiplayer.
         if self.match:
@@ -514,7 +507,7 @@ class Player:
 
     async def restrict(self, admin: Player, reason: str) -> None:
         """Restrict `self` for `reason`, and log to sql."""
-        await self.remove_privs(Privileges.NORMAL)
+        await self.remove_privs(Privileges.UNRESTRICTED)
 
         await app.state.services.database.execute(
             "INSERT INTO logs "
@@ -533,25 +526,21 @@ class Player:
                 self.id,
             )
 
-        if "restricted" in self.__dict__:
-            del self.restricted  # wipe cached_property
-
         log_msg = f"{admin} restricted {self} for: {reason}."
 
         log(log_msg, Ansi.LRED)
 
         if webhook_url := app.settings.DISCORD_AUDIT_LOG_WEBHOOK:
             webhook = Webhook(webhook_url, content=log_msg)
-            await webhook.post(app.state.services.http)
+            await webhook.post(app.state.services.http_client)
 
+        # refresh their client state
         if self.online:
-            # log the user out if they're offline, this
-            # will simply relog them and refresh their app.state
             self.logout()
 
     async def unrestrict(self, admin: Player, reason: str) -> None:
         """Restrict `self` for `reason`, and log to sql."""
-        await self.add_privs(Privileges.NORMAL)
+        await self.add_privs(Privileges.UNRESTRICTED)
 
         await app.state.services.database.execute(
             "INSERT INTO logs "
@@ -574,16 +563,13 @@ class Player:
                 {str(self.id): stats.pp},
             )
 
-        if "restricted" in self.__dict__:
-            del self.restricted  # wipe cached_property
-
         log_msg = f"{admin} unrestricted {self} for: {reason}."
 
         log(log_msg, Ansi.LRED)
 
         if webhook_url := app.settings.DISCORD_AUDIT_LOG_WEBHOOK:
             webhook = Webhook(webhook_url, content=log_msg)
-            await webhook.post(app.state.services.http)
+            await webhook.post(app.state.services.http_client)
 
         if self.online:
             # log the user out if they're offline, this
