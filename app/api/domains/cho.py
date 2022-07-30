@@ -500,7 +500,7 @@ async def login(
 
             async with services.http_client.get(
                 OSU_API_V2_CHANGELOG_URL,
-                params={"stream": osu_client_stream.value},
+                params={"stream": osu_client_stream},
             ) as resp:
                 for build in (await resp.json())["builds"]:
                     version = date(
