@@ -522,6 +522,17 @@ async def login(
                         app.packets.version_update_forced() + app.packets.user_id(-2)
                     ),
                 }
+    else:
+        # this is a fake osu_version in order to fix our client
+        osu_version = OsuVersion(
+            date=date(
+                year=2021,
+                month=7,
+                day=21,
+            ),
+            revision=None,
+            stream=OsuStream("stable"),
+        )
 
     running_under_wine = login_data["adapters_str"] == "runningunderwine"
     adapters = [a for a in login_data["adapters_str"][:-1].split(".")]
