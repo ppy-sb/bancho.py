@@ -527,8 +527,8 @@ async def login(
         osu_version = OsuVersion(
             date=date(
                 year=2021,
-                month=7,
-                day=21,
+                month=1,
+                day=25,
             ),
             revision=None,
             stream=OsuStream("stable"),
