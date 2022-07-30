@@ -60,7 +60,6 @@ from app.packets import BanchoPacketReader
 from app.packets import BasePacket
 from app.packets import ClientPackets
 from app.state import services
-from app.usecases.performance import ScoreDifficultyParams
 
 OSU_API_V2_CHANGELOG_URL = "https://osu.ppy.sh/api/v2/changelog"
 

@@ -260,7 +260,7 @@ async def reconnect(ctx: Context) -> Optional[str]:
     return None
 
 
-@command(Privileges.NORMAL)
+@command(Privileges.UNRESTRICTED)
 async def changename(ctx: Context) -> Optional[str]:
     """Change your username."""
     name = " ".join(ctx.args).strip()
