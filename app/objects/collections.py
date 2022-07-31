@@ -225,7 +225,7 @@ class Players(list[Player]):
     @staticmethod
     def _parse_attr(kwargs: dict[str, Any]) -> tuple[str, object]:
         """Get first matched attr & val from input kwargs. Used in get() methods."""
-        for attr in ("token", "id", "name"):
+        for attr in ("token", "id", "name", "api_key"):
             if (val := kwargs.pop(attr, None)) is not None:
                 if attr == "name":
                     attr = "safe_name"

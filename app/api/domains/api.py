@@ -1,5 +1,6 @@
 """ api: bancho.py's developer api for interacting with server state """
 from __future__ import annotations
+import asyncio
 
 import hashlib
 import struct
@@ -8,21 +9,23 @@ from typing import Literal
 from typing import Optional
 
 import databases.core
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi import status
 from fastapi.param_functions import Depends
 from fastapi.param_functions import Query
 from fastapi.responses import ORJSONResponse
 from fastapi.responses import StreamingResponse
+from app.constants.privileges import Privileges
 
 import app.packets
 import app.state
 from app.constants import regexes
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
-from app.objects.beatmap import Beatmap
+from app.objects.beatmap import Beatmap, BeatmapSet, ensure_local_osu_file
 from app.objects.clan import Clan
 from app.objects.player import Player
+from app.state import sessions
 from app.state.services import acquire_db_conn
 
 AVATARS_PATH = SystemPath.cwd() / ".data/avatars"
@@ -937,5 +940,46 @@ async def api_get_pool(
             },
         },
     )
+
+
+@router.get("/update_beatmapsets")
+async def force_update_beatmapsets(api_key: str, sid: int):
+    player = await sessions.players.from_cache_or_sql(api_key=api_key)
+    if player is None:
+        return ORJSONResponse(
+            {"status": "Invaild API Key."},
+            status_code=status.HTTP_401_UNAUTHORIZED
+        )
+    if not player.priv & Privileges.NOMINATOR:
+        return ORJSONResponse(
+            {"status": "You are not a nominator."},
+            status_code=status.HTTP_403_FORBIDDEN
+        )
+    set = await BeatmapSet.from_bsid(sid)
+    await set._update_if_available()
+    beatmaps = []
+    for each_map in set.maps:
+        osu_file_path = BEATMAPS_PATH / f"{each_map.id}.osu"
+        await ensure_local_osu_file(osu_file_path, each_map.id, each_map.md5)
+        await asyncio.sleep(0.5)
+        beatmaps.append(
+            {
+                "bid": each_map.id,
+                "title": each_map.title,
+                "version": each_map.version,
+            }
+        )
+    doc = {
+        "status": "Success!",
+        "sid": set.id,
+        "count": len(beatmaps),
+        "beatmaps": beatmaps,
+    }
+    return ORJSONResponse(doc, status_code=status.HTTP_200_OK)
+        
+    
+    
+    
+    
 
 
