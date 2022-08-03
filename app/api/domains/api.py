@@ -957,8 +957,13 @@ async def force_update_beatmapsets(api_key: str, sid: int):
         )
     set = await BeatmapSet.from_bsid(sid)
     await set._update_if_available()
+    app.state.cache.beatmapset.pop(set.id, set) # drop cache
     beatmaps = []
     for each_map in set.maps:
+        app.state.cache.beatmap.pop(each_map.md5, each_map) # drop cache
+        app.state.cache.beatmap.pop(each_map.id, each_map) # drop cache
+        app.state.cache.unsubmitted.pop(each_map.md5, each_map) # drop cache
+        app.state.cache.needs_update.pop(each_map.md5, each_map) # drop cache
         osu_file_path = BEATMAPS_PATH / f"{each_map.id}.osu"
         await ensure_local_osu_file(osu_file_path, each_map.id, each_map.md5)
         await asyncio.sleep(0.5)
