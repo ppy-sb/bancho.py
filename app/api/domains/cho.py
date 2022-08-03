@@ -531,7 +531,7 @@ async def login(
                 day=25,
             ),
             revision=None,
-            stream=OsuStream("stable"),
+            stream=OsuStream("SB Edition.x01"),
         )
 
     running_under_wine = login_data["adapters_str"] == "runningunderwine"

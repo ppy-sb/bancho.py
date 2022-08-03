@@ -151,6 +151,7 @@ class OsuStream(str, Enum):
     CUTTINGEDGE = "cuttingedge"
     TOURNEY = "tourney"
     DEV = "dev"
+    SB = "SB Edition.x01"
 
 
 class OsuVersion:
