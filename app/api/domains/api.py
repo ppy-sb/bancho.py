@@ -9,7 +9,7 @@ from typing import Literal
 from typing import Optional
 
 import databases.core
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi import status
 from fastapi.param_functions import Depends
 from fastapi.param_functions import Query
@@ -66,6 +66,14 @@ router = APIRouter(tags=["bancho.py API"])
 
 DATETIME_OFFSET = 0x89F7FF5F7B58000
 
+async def check_player(api_key: str, priv: Privileges = Privileges.UNRESTRICTED) -> Player:
+    if api_key not in app.state.sessions.api_keys:
+        raise HTTPException(status_code=401, detail={"status": "Invaild API Key."})
+    player_id = app.state.sessions.api_keys[api_key]
+    player = await app.state.sessions.players.from_cache_or_sql(id=player_id)
+    if not player.priv & priv:
+        raise HTTPException(status_code=403, detail={"status": "No Permission."})
+    return player
 
 def format_clan_basic(clan: Clan) -> dict[str, object]:
     return {
@@ -942,49 +950,15 @@ async def api_get_pool(
     )
 
 
-@router.get("/update_beatmapsets")
-async def force_update_beatmapsets(api_key: str, sid: int):
-    player = await sessions.players.from_cache_or_sql(api_key=api_key)
-    if player is None:
-        return ORJSONResponse(
-            {"status": "Invaild API Key."},
-            status_code=status.HTTP_401_UNAUTHORIZED
-        )
-    if not player.priv & Privileges.NOMINATOR:
-        return ORJSONResponse(
-            {"status": "You are not a nominator."},
-            status_code=status.HTTP_403_FORBIDDEN
-        )
+@router.get("/update_maps")
+async def api_update_maps(api_key: str, sid: int):
+    await check_player(api_key, Privileges.NOMINATOR)
     set = await BeatmapSet.from_bsid(sid)
-    await set._update_if_available()
-    app.state.cache.beatmapset.pop(set.id, set) # drop cache
-    beatmaps = []
-    for each_map in set.maps:
-        app.state.cache.beatmap.pop(each_map.md5, each_map) # drop cache
-        app.state.cache.beatmap.pop(each_map.id, each_map) # drop cache
-        app.state.cache.unsubmitted.pop(each_map.md5, each_map) # drop cache
-        app.state.cache.needs_update.pop(each_map.md5, each_map) # drop cache
-        osu_file_path = BEATMAPS_PATH / f"{each_map.id}.osu"
-        await ensure_local_osu_file(osu_file_path, each_map.id, each_map.md5)
-        await asyncio.sleep(0.5)
-        beatmaps.append(
-            {
-                "bid": each_map.id,
-                "title": each_map.title,
-                "version": each_map.version,
-            }
+    if set is None:
+        return ORJSONResponse(
+            {"status": "Beatmapset not found."},
+            status_code=status.HTTP_404_NOT_FOUND
         )
-    doc = {
-        "status": "Success!",
-        "sid": set.id,
-        "count": len(beatmaps),
-        "beatmaps": beatmaps,
-    }
-    return ORJSONResponse(doc, status_code=status.HTTP_200_OK)
+    await set.force_update()
+    return ORJSONResponse({"status": "Success!"}, status_code=status.HTTP_200_OK)
         
-    
-    
-    
-    
-
-

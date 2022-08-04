@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 
 import functools
 import hashlib
@@ -737,6 +738,18 @@ class BeatmapSet:
                 "DELETE FROM mapsets WHERE id = :set_id",
                 {"set_id": self.id},
             )
+            
+    async def force_update(self) -> None:
+        await self._update_if_available()
+        app.state.cache.beatmapset.pop(self.id, None) # drop cache if exist
+        for each_map in self.maps:
+            app.state.cache.beatmap.pop(each_map.md5, None) # drop cache if exist
+            app.state.cache.beatmap.pop(each_map.id, None) # drop cache if exist
+            app.state.cache.unsubmitted.discard(each_map.md5) # drop cache if exist
+            app.state.cache.needs_update.discard(each_map.md5) # drop cache if exist
+        osu_file_path = BEATMAPS_PATH / f"{each_map.id}.osu"
+        await ensure_local_osu_file(osu_file_path, each_map.id, each_map.md5)
+        await asyncio.sleep(0.5)
 
     async def _save_to_sql(self) -> None:
         """Save the object's attributes into the database."""
