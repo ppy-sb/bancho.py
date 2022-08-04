@@ -400,11 +400,10 @@ async def api_get_player_scores(
     query.append(f"ORDER BY {sort} DESC LIMIT :limit")
     params["limit"] = limit
 
-    rows = []
-    for row in await app.state.services.database.fetch_all(" ".join(query), params):
-        dic = dict(row)
-        dic['mods_str'] = repr(Mods(dic['mods']))
-        rows.append(dic)
+    rows = [
+        dict(row)
+        for row in await app.state.services.database.fetch_all(" ".join(query), params)
+    ]
 
     # fetch & return info from sql
     for row in rows:
