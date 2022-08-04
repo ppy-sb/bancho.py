@@ -960,5 +960,10 @@ async def api_update_maps(api_key: str, sid: int):
             status_code=status.HTTP_404_NOT_FOUND
         )
     await set.force_update()
-    return ORJSONResponse({"status": "Success!"}, status_code=status.HTTP_200_OK)
+    return ORJSONResponse(
+        {
+            "status": "Success!",
+            "sid": set.id
+        }, 
+        status_code=status.HTTP_200_OK)
         
