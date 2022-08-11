@@ -593,7 +593,7 @@ class BeatmapSet:
         ranked or approved on official servers."""
         for bmap in self.maps:
             if (
-                bmap.status not in (RankedStatus.Ranked, RankedStatus.Approved)
+                bmap.status not in (RankedStatus.Ranked) # approved should not be checked on ppysb
                 or bmap.frozen  # ranked/approved, but only on bancho.py
             ):
                 return False
