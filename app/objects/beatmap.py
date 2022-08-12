@@ -1,6 +1,6 @@
 from __future__ import annotations
-import asyncio
 
+import asyncio
 import functools
 import hashlib
 from collections import defaultdict
@@ -141,9 +141,9 @@ class RankedStatus(IntEnum):
             {
                 -2: cls.Approved,  # graveyard -> approved
                 -1: cls.Approved,  # wip -> approved
-                0: cls.Approved,   # unranked -> approved
+                0: cls.Approved,  # unranked -> approved
                 1: cls.Ranked,
-                2: cls.Ranked,     # approved -> ranked
+                2: cls.Ranked,  # approved -> ranked
                 3: cls.Qualified,
                 4: cls.Loved,
             },
@@ -593,7 +593,8 @@ class BeatmapSet:
         ranked or approved on official servers."""
         for bmap in self.maps:
             if (
-                bmap.status is not RankedStatus.Ranked # approved should not be checked on ppysb
+                bmap.status
+                is not RankedStatus.Ranked  # approved should not be checked on ppysb
                 or bmap.frozen  # ranked/approved, but only on bancho.py
             ):
                 return False
@@ -661,8 +662,10 @@ class BeatmapSet:
                     map_md5s_to_delete.add(old_map.md5)
                 else:
                     new_map = new_maps[old_id]
-                    new_status = RankedStatus.from_osuapi(new_maps[old_id]['approved'])
-                    if old_map.md5 == new_map["file_md5"] and (old_map.frozen or old_map.status == new_status):
+                    new_status = RankedStatus.from_osuapi(new_maps[old_id]["approved"])
+                    if old_map.md5 == new_map["file_md5"] and (
+                        old_map.frozen or old_map.status == new_status
+                    ):
                         # map is the same, make no changes
                         updated_maps.append(old_map)  # TODO: is this needed?
                     else:
@@ -738,7 +741,6 @@ class BeatmapSet:
                 "DELETE FROM mapsets WHERE id = :set_id",
                 {"set_id": self.id},
             )
-            
 
     async def _save_to_sql(self) -> None:
         """Save the object's attributes into the database."""

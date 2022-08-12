@@ -336,7 +336,17 @@ class Score:
     def calculate_performance(self, osu_file_path: Path) -> tuple[float, float]:
         """Calculate PP and star rating for our score."""
         mode_vn = self.mode.as_vanilla
-        param = ScoreParams(mods=self.mods, acc=self.acc, n300=self.n300, n100=self.n100, n50=self.n50, nMisses=self.nmiss, nKatu=self.nkatu, combo=self.max_combo, score=self.score)
+        param = ScoreParams(
+            mods=self.mods,
+            acc=self.acc,
+            n300=self.n300,
+            n100=self.n100,
+            n50=self.n50,
+            nMisses=self.nmiss,
+            nKatu=self.nkatu,
+            combo=self.max_combo,
+            score=self.score,
+        )
         result = performance.calculate(mode_vn, str(osu_file_path), [param])[0]
         return result.pp, result.stars
 

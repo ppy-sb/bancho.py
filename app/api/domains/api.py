@@ -1,32 +1,41 @@
 """ api: bancho.py's developer api for interacting with server state """
 from __future__ import annotations
-from datetime import datetime
 
 import hashlib
 import struct
+from datetime import datetime
 from pathlib import Path as SystemPath
 from typing import Literal
 from typing import Optional
 
 import databases.core
-from fastapi import APIRouter, HTTPException
-from fastapi import status, File, Form, UploadFile
-from fastapi.param_functions import Depends, Security
-from fastapi.param_functions import Query
-from fastapi.responses import ORJSONResponse
-from fastapi.security.oauth2 import SecurityScopes
-from fastapi.responses import StreamingResponse
-from app.constants.privileges import Privileges
+from fastapi import APIRouter
+from fastapi import File
+from fastapi import Form
 from fastapi import Header
+from fastapi import HTTPException
+from fastapi import status
+from fastapi import UploadFile
+from fastapi.param_functions import Depends
+from fastapi.param_functions import Query
+from fastapi.param_functions import Security
+from fastapi.responses import ORJSONResponse
+from fastapi.responses import StreamingResponse
+from fastapi.security.oauth2 import SecurityScopes
+
 import app.packets
 import app.state
 from app.constants import regexes
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
-from app.objects.beatmap import Beatmap, ensure_local_osu_file
-from app.objects.score import Grade, Score, SubmissionStatus
+from app.constants.privileges import Privileges
+from app.objects.beatmap import Beatmap
+from app.objects.beatmap import ensure_local_osu_file
 from app.objects.clan import Clan
 from app.objects.player import Player
+from app.objects.score import Grade
+from app.objects.score import Score
+from app.objects.score import SubmissionStatus
 from app.state.services import acquire_db_conn
 
 AVATARS_PATH = SystemPath.cwd() / ".data/avatars"
@@ -67,20 +76,29 @@ router = APIRouter(tags=["bancho.py API"])
 
 DATETIME_OFFSET = 0x89F7FF5F7B58000
 
+
 async def get_player(
-    security_scopes: SecurityScopes, api_key: str = Header(alias='Authorization', default=None)
+    security_scopes: SecurityScopes,
+    api_key: str = Header(alias="Authorization", default=None),
 ):
     if api_key is None:
-        raise HTTPException(status_code=400, detail={"status": "Must provide authorization token."})
+        raise HTTPException(
+            status_code=400,
+            detail={"status": "Must provide authorization token."},
+        )
     if api_key not in app.state.sessions.api_keys:
-        raise HTTPException(status_code=401, detail={"status": "Unknown authorization token."})
+        raise HTTPException(
+            status_code=401,
+            detail={"status": "Unknown authorization token."},
+        )
     player_id = app.state.sessions.api_keys[api_key]
     player = await app.state.sessions.players.from_cache_or_sql(id=player_id)
     for scope in security_scopes.scopes:
         priv = Privileges[scope.upper()]
         if not player.priv & priv:
-            raise HTTPException(status_code=403, detail={"status": "No Permission."}) 
+            raise HTTPException(status_code=403, detail={"status": "No Permission."})
     return player
+
 
 def format_clan_basic(clan: Clan) -> dict[str, object]:
     return {
@@ -955,13 +973,14 @@ async def api_get_pool(
         },
     )
 
+
 @router.post("/submit_score")
 async def api_submit_score(
-    user:Player = Security(get_player, scopes=['Staff']),
+    user: Player = Security(get_player, scopes=["Staff"]),
     replay_file: UploadFile = File(default=None),
     db_conn: databases.core.Connection = Depends(acquire_db_conn),
     map_md5: str = Form(...),
-    score_value: int = Form(..., alias='score'),
+    score_value: int = Form(..., alias="score"),
     max_combo: int = Form(...),
     mods: int = Form(...),
     n300: int = Form(...),
@@ -976,19 +995,25 @@ async def api_submit_score(
     grade: str = Form(...),
     server: str = Form(...),
     identifier_type: str = Form(...),
-    outer_identifier: str = Form(...)
-    ):
+    outer_identifier: str = Form(...),
+):
     # Check information about outer submission record
-    if server not in ['bancho', 'ppysb', 'akatsuki', 'offline']:
-        return {'status': 400, 'msg': 'form data server is not in following values: bancho, ppysb, akatsuki, offline'}
-    if identifier_type not in ['replay_username', 'server_userid', 'replay_id']:
-        return {'status': 400, 'msg': 'form data identifier_type is not in following values: replay_username, server_id, replay_id'}
+    if server not in ["bancho", "ppysb", "akatsuki", "offline"]:
+        return {
+            "status": 400,
+            "msg": "form data server is not in following values: bancho, ppysb, akatsuki, offline",
+        }
+    if identifier_type not in ["replay_username", "server_userid", "replay_id"]:
+        return {
+            "status": 400,
+            "msg": "form data identifier_type is not in following values: replay_username, server_id, replay_id",
+        }
     # Check whether we have the map
     bmap = await Beatmap.from_md5(map_md5)
     osu_file_path = BEATMAPS_PATH / f"{bmap.id}.osu"
     await ensure_local_osu_file(osu_file_path, bmap.id, bmap.md5)
     # Make a score manually to calc pp and acc
-    score:Score = Score()
+    score: Score = Score()
     score.score = score_value
     score.max_combo = max_combo
     score.mods = Mods(mods)
@@ -1019,7 +1044,11 @@ async def api_submit_score(
             },
         )
     # Insert score into sql progress
-    is_info_table_exist = (await db_conn.fetch_one("SELECT table_name FROM information_schema.TABLES WHERE table_name = 'scores_outer'")) is not None
+    is_info_table_exist = (
+        await db_conn.fetch_one(
+            "SELECT table_name FROM information_schema.TABLES WHERE table_name = 'scores_outer'",
+        )
+    ) is not None
     new_id = await db_conn.execute(
         "INSERT INTO scores "
         "VALUES (NULL, "
@@ -1050,8 +1079,8 @@ async def api_submit_score(
             "client_flags": 0,
             "user_id": score.player.id,
             "perfect": perfect,
-            "checksum": 'outer submit',
-        }
+            "checksum": "outer submit",
+        },
     )
     if is_info_table_exist:
         await db_conn.execute(
@@ -1063,11 +1092,11 @@ async def api_submit_score(
                 "identifier_type": identifier_type,
                 "outer_identifier": outer_identifier,
                 "recipient_id": user.id,
-                "has_replay": replay_file is not None
-            }
+                "has_replay": replay_file is not None,
+            },
         )
     # Download replay into the folder
     if replay_file is not None:
         replay_file_path = REPLAYS_PATH / f"{new_id}.osr"
         replay_file_path.write_bytes(await replay_file.read())
-    return {'status': 200, 'score_id': new_id}
+    return {"status": 200, "score_id": new_id}

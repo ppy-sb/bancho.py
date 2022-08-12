@@ -1771,9 +1771,11 @@ async def get_osz(
     url = f"{app.settings.MIRROR_URL}/{query_str}"
 
     if app.settings.ENABLE_SAYO:
-        r = requests.get(f"http://ip-api.com/json/{request.headers.get('x-real-ip')}").json()
-        if (r['status'] == 'success') & (r['country'] == "China"):
-            url = f'https://dl.sayobot.cn/beatmaps/download/novideo/{map_set_id}'
+        r = requests.get(
+            f"http://ip-api.com/json/{request.headers.get('x-real-ip')}",
+        ).json()
+        if (r["status"] == "success") & (r["country"] == "China"):
+            url = f"https://dl.sayobot.cn/beatmaps/download/novideo/{map_set_id}"
 
     return RedirectResponse(
         url=url,

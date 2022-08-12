@@ -15,12 +15,12 @@ from typing import TypedDict
 
 import bcrypt
 import databases.core
-from ppysb_pp_py import ScoreParams
 from fastapi import APIRouter
 from fastapi import Response
 from fastapi.param_functions import Header
 from fastapi.requests import Request
 from fastapi.responses import HTMLResponse
+from ppysb_pp_py import ScoreParams
 
 import app.packets
 import app.settings
@@ -100,9 +100,9 @@ async def bancho_http_handler():
 
 @router.post("/")
 async def bancho_handler(
-        request: Request,
-        osu_token: Optional[str] = Header(None),
-        user_agent: Literal["osu!"] = Header(...),
+    request: Request,
+    osu_token: Optional[str] = Header(None),
+    user_agent: Literal["osu!"] = Header(...),
 ):
     ip = app.state.services.ip_resolver.get_ip(request.headers)
 
@@ -124,8 +124,8 @@ async def bancho_handler(
         # tell their client to reconnect immediately.
         return Response(
             content=(
-                    app.packets.notification("Server has restarted.")
-                    + app.packets.restart_server(0)  # ms until reconnection
+                app.packets.notification("Server has restarted.")
+                + app.packets.restart_server(0)  # ms until reconnection
             ),
         )
 
@@ -154,8 +154,8 @@ async def bancho_handler(
 
 
 def register(
-        packet: ClientPackets,
-        restricted: bool = False,
+    packet: ClientPackets,
+    restricted: bool = False,
 ) -> Callable[[type[BasePacket]], type[BasePacket]]:
     """Register a handler in `app.state.packets`."""
 
@@ -444,9 +444,9 @@ def parse_login_data(data: bytes) -> LoginData:
 
 
 async def login(
-        body: bytes,
-        ip: IPAddress,
-        db_conn: databases.core.Connection,
+    body: bytes,
+    ip: IPAddress,
+    db_conn: databases.core.Connection,
 ) -> LoginResponse:
     """\
     Login has no specific packet, but happens when the osu!
@@ -472,7 +472,7 @@ async def login(
     login_data = parse_login_data(body)
 
     # perform some validation & further parsing on the data
-    if login_data["osu_version"] != 'b20210125.1 SB Edition.x01':
+    if login_data["osu_version"] != "b20210125.1 SB Edition.x01":
         match = regexes.OSU_VERSION.match(login_data["osu_version"])
         if match is None:
             return {
@@ -540,8 +540,8 @@ async def login(
         return {
             "osu_token": "empty-adapters",
             "response_body": (
-                    app.packets.user_id(-1)
-                    + app.packets.notification("Please restart your osu! and try again.")
+                app.packets.user_id(-1)
+                + app.packets.notification("Please restart your osu! and try again.")
             ),
         }
 
@@ -565,8 +565,8 @@ async def login(
                 return {
                     "osu_token": "user-ghosted",
                     "response_body": (
-                            app.packets.user_id(-1)
-                            + app.packets.notification("User already logged in.")
+                        app.packets.user_id(-1)
+                        + app.packets.notification("User already logged in.")
                     ),
                 }
 
@@ -582,8 +582,8 @@ async def login(
         return {
             "osu_token": "unknown-username",
             "response_body": (
-                    app.packets.notification(f"{BASE_DOMAIN}: Unknown username")
-                    + app.packets.user_id(-1)
+                app.packets.notification(f"{BASE_DOMAIN}: Unknown username")
+                + app.packets.user_id(-1)
             ),
         }
 
@@ -611,8 +611,8 @@ async def login(
             return {
                 "osu_token": "incorrect-password",
                 "response_body": (
-                        app.packets.notification(f"{BASE_DOMAIN}: Incorrect password")
-                        + app.packets.user_id(-1)
+                    app.packets.notification(f"{BASE_DOMAIN}: Incorrect password")
+                    + app.packets.user_id(-1)
                 ),
             }
     else:  # ~200ms
@@ -620,8 +620,8 @@ async def login(
             return {
                 "osu_token": "incorrect-password",
                 "response_body": (
-                        app.packets.notification(f"{BASE_DOMAIN}: Incorrect password")
-                        + app.packets.user_id(-1)
+                    app.packets.notification(f"{BASE_DOMAIN}: Incorrect password")
+                    + app.packets.user_id(-1)
                 ),
             }
 
@@ -696,10 +696,10 @@ async def login(
                 return {
                     "osu_token": "contact-staff",
                     "response_body": (
-                            app.packets.notification(
-                                "Please contact staff directly to create an account.",
-                            )
-                            + app.packets.user_id(-1)
+                        app.packets.notification(
+                            "Please contact staff directly to create an account.",
+                        )
+                        + app.packets.user_id(-1)
                     ),
                 }
 
@@ -779,9 +779,9 @@ async def login(
     # the osu! client will attempt to join the channels.
     for c in app.state.sessions.channels:
         if (
-                not c.auto_join
-                or not c.can_read(p.priv)
-                or c._name == "#lobby"  # (can't be in mp lobby @ login)
+            not c.auto_join
+            or not c.can_read(p.priv)
+            or c._name == "#lobby"  # (can't be in mp lobby @ login)
         ):
             continue
 
@@ -964,8 +964,8 @@ class SpectateFrames(BasePacket):
 
         # data = app.packets.spectateFrames(self.frame_bundle.raw_data)
         data = (
-                struct.pack("<HxI", 15, len(self.frame_bundle.raw_data))
-                + self.frame_bundle.raw_data
+            struct.pack("<HxI", 15, len(self.frame_bundle.raw_data))
+            + self.frame_bundle.raw_data
         )
 
         # enqueue the data
@@ -1113,9 +1113,9 @@ class SendPrivateMessage(BasePacket):
 
                         osu_file_path = BEATMAPS_PATH / f"{bmap.id}.osu"
                         if not await ensure_local_osu_file(
-                                osu_file_path,
-                                bmap.id,
-                                bmap.md5,
+                            osu_file_path,
+                            bmap.id,
+                            bmap.md5,
                         ):
                             resp_msg = (
                                 "Mapfile could not be found; "
@@ -1139,8 +1139,14 @@ class SendPrivateMessage(BasePacket):
                                     params.append(ScoreParams(acc=acc, mods=int(mods)))
                             else:  # mode_vn == 3
                                 for score in app.settings.PP_CACHED_SCORES:
-                                    params.append(ScoreParams(score=score, mods=int(mods)))
-                            results = performance.calculate(mode_vn, str(osu_file_path), params)
+                                    params.append(
+                                        ScoreParams(score=score, mods=int(mods)),
+                                    )
+                            results = performance.calculate(
+                                mode_vn,
+                                str(osu_file_path),
+                                params,
+                            )
 
                             if mode_vn in (0, 1, 2):
                                 resp_msg = " | ".join(
@@ -1486,8 +1492,8 @@ class MatchChangeSettings(BasePacket):
                 # find the new appropriate default team.
                 # defaults are (ffa: neutral, teams: red).
                 if self.new.team_type in (
-                        MatchTeamTypes.head_to_head,
-                        MatchTeamTypes.tag_coop,
+                    MatchTeamTypes.head_to_head,
+                    MatchTeamTypes.tag_coop,
                 ):
                     new_t = MatchTeams.neutral
                 else:

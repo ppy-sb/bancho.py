@@ -1,11 +1,19 @@
+from __future__ import annotations
+
 from typing import List
 
-from ppysb_pp_py import CalculateResult, ScoreParams, Calculator
+from ppysb_pp_py import CalculateResult
+from ppysb_pp_py import Calculator
+from ppysb_pp_py import ScoreParams
 
 from app.constants.mods import Mods
 
 
-def calculate(mode_vn: int, osu_file_path: str, params: List[ScoreParams]) -> List[CalculateResult]:
+def calculate(
+    mode_vn: int,
+    osu_file_path: str,
+    params: List[ScoreParams],
+) -> List[CalculateResult]:
     calculator = Calculator(osu_file_path)
     return_value = []
     for param in params:
