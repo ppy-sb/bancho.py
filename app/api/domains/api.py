@@ -1,6 +1,6 @@
 """ api: bancho.py's developer api for interacting with server state """
 from __future__ import annotations
-import asyncio
+from datetime import datetime
 
 import hashlib
 import struct
@@ -10,8 +10,8 @@ from typing import Optional
 
 import databases.core
 from fastapi import APIRouter, HTTPException
-from fastapi import status
-from fastapi.param_functions import Depends
+from fastapi import status, File, Form, UploadFile
+from fastapi.param_functions import Depends, Security
 from fastapi.param_functions import Query
 from fastapi.responses import ORJSONResponse
 from fastapi.security.oauth2 import SecurityScopes
@@ -23,7 +23,8 @@ import app.state
 from app.constants import regexes
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
-from app.objects.beatmap import Beatmap
+from app.objects.beatmap import Beatmap, ensure_local_osu_file
+from app.objects.score import Grade, Score, SubmissionStatus
 from app.objects.clan import Clan
 from app.objects.player import Player
 from app.state.services import acquire_db_conn
@@ -953,4 +954,120 @@ async def api_get_pool(
             },
         },
     )
-        
+
+@router.post("/submit_score")
+async def api_submit_score(
+    user:Player = Security(get_player, scopes=['Staff']),
+    replay_file: UploadFile = File(default=None),
+    db_conn: databases.core.Connection = Depends(acquire_db_conn),
+    map_md5: str = Form(...),
+    score_value: int = Form(..., alias='score'),
+    max_combo: int = Form(...),
+    mods: int = Form(...),
+    n300: int = Form(...),
+    n100: int = Form(...),
+    n50: int = Form(...),
+    nmiss: int = Form(...),
+    ngeki: int = Form(...),
+    nkatu: int = Form(...),
+    mode: int = Form(...),
+    perfect: bool = Form(...),
+    playtime: int = Form(...),
+    grade: str = Form(...),
+    server: str = Form(...),
+    identifier_type: str = Form(...),
+    outer_identifier: str = Form(...)
+    ):
+    # Check information about outer submission record
+    if server not in ['bancho', 'ppysb', 'akatsuki', 'offline']:
+        return {'status': 400, 'msg': 'form data server is not in following values: bancho, ppysb, akatsuki, offline'}
+    if identifier_type not in ['replay_username', 'server_userid', 'replay_id']:
+        return {'status': 400, 'msg': 'form data identifier_type is not in following values: replay_username, server_id, replay_id'}
+    # Check whether we have the map
+    bmap = await Beatmap.from_md5(map_md5)
+    osu_file_path = BEATMAPS_PATH / f"{bmap.id}.osu"
+    await ensure_local_osu_file(osu_file_path, bmap.id, bmap.md5)
+    # Make a score manually to calc pp and acc
+    score:Score = Score()
+    score.score = score_value
+    score.max_combo = max_combo
+    score.mods = Mods(mods)
+    score.n300 = n300
+    score.n100 = n100
+    score.n50 = n50
+    score.nmiss = nmiss
+    score.ngeki = ngeki
+    score.nkatu = nkatu
+    score.mode = GameMode.from_params(mode, score.mods)
+    score.server_time = datetime.utcfromtimestamp(float(playtime))
+    score.player = user
+    score.grade = Grade.from_str(grade)
+    score.bmap = bmap
+    score.acc = score.calculate_accuracy()
+    score.pp = score.calculate_performance(osu_file_path)[0]
+    await score.calculate_status()
+    # This is required in the submission like progress
+    if score.status == SubmissionStatus.BEST:
+        await db_conn.execute(
+            "UPDATE scores SET status = 1 "
+            "WHERE status = 2 AND map_md5 = :map_md5 "
+            "AND userid = :user_id AND mode = :mode",
+            {
+                "map_md5": score.bmap.md5,
+                "user_id": score.player.id,
+                "mode": score.mode,
+            },
+        )
+    # Insert score into sql progress
+    is_info_table_exist = (await db_conn.fetch_one("SELECT table_name FROM information_schema.TABLES WHERE table_name = 'scores_outer'")) is not None
+    new_id = await db_conn.execute(
+        "INSERT INTO scores "
+        "VALUES (NULL, "
+        ":map_md5, :score, :pp, :acc, "
+        ":max_combo, :mods, :n300, :n100, "
+        ":n50, :nmiss, :ngeki, :nkatu, "
+        ":grade, :status, :mode, :play_time, "
+        ":time_elapsed, :client_flags, :user_id, :perfect, "
+        ":checksum)",
+        {
+            "map_md5": map_md5,
+            "score": score_value,
+            "pp": score.pp,
+            "acc": score.acc,
+            "max_combo": max_combo,
+            "mods": mods,
+            "n300": n300,
+            "n100": n100,
+            "n50": n50,
+            "nmiss": nmiss,
+            "ngeki": ngeki,
+            "nkatu": nkatu,
+            "grade": score.grade.name,
+            "status": score.status,
+            "mode": score.mode,
+            "play_time": score.server_time,
+            "time_elapsed": 0,
+            "client_flags": 0,
+            "user_id": score.player.id,
+            "perfect": perfect,
+            "checksum": 'outer submit',
+        }
+    )
+    if is_info_table_exist:
+        await db_conn.execute(
+            "INSERT INTO scores_outer "
+            "VALUES (:id, :server, :identifier_type, :outer_identifier, :recipient_id, :has_replay, FALSE, NOW())",
+            {
+                "id": new_id,
+                "server": server,
+                "identifier_type": identifier_type,
+                "outer_identifier": outer_identifier,
+                "recipient_id": user.id,
+                "has_replay": replay_file is not None
+            }
+        )
+    # Download replay into the folder
+    if replay_file is not None:
+        replay_file_path = REPLAYS_PATH / f"{new_id}.osr"
+        replay_file_path.write_bytes(await replay_file.read())
+    return {'status': 200, 'score_id': new_id}
