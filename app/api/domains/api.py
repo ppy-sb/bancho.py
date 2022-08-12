@@ -996,6 +996,7 @@ async def api_submit_score(
     server: str = Form(...),
     identifier_type: str = Form(...),
     outer_identifier: str = Form(...),
+    userid: int = Form(...),
 ):
     # Check information about outer submission record
     if server not in ["bancho", "ppysb", "akatsuki", "offline"]:
@@ -1025,7 +1026,7 @@ async def api_submit_score(
     score.nkatu = nkatu
     score.mode = GameMode.from_params(mode, score.mods)
     score.server_time = datetime.utcfromtimestamp(float(playtime))
-    score.player = user
+    score.player = await app.state.sessions.players.from_cache_or_sql(id=userid)
     score.grade = Grade.from_str(grade)
     score.bmap = bmap
     score.acc = score.calculate_accuracy()
