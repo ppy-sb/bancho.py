@@ -41,7 +41,7 @@ def main(argv: Sequence[str]) -> int:
 
     for safety_check in (
         app.utils.ensure_supported_platform,  # linux only at the moment
-        app.utils.ensure_local_services_are_running,  # mysql (if local)
+        app.utils.ensure_connected_services,  # mysql, redis
         app.utils.ensure_directory_structure,  # .data/ & achievements/ dir structure
     ):
         if (exit_code := safety_check()) != 0:
