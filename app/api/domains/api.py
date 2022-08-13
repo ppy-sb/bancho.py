@@ -1001,7 +1001,12 @@ async def api_submit_score(
     if server not in ["bancho", "ppysb", "akatsuki", "offline"]:
         return {
             "status": 400,
-            "msg": "form data server is not in following values: bancho, ppysb, akatsuki, offline",
+            "msg": "'server' is not in following values: bancho, ppysb, akatsuki, offline",
+        }
+    if server != 'offline' and foreign_score_id == 0:
+        return {
+            "status": 400,
+            "msg": "Any online scores should have foreign_score_id",
         }
     # Check whether we have the map
     bmap = await Beatmap.from_md5(map_md5)
@@ -1079,7 +1084,7 @@ async def api_submit_score(
     )
     if is_info_table_exist:
         await db_conn.execute(
-            "INSERT INTO foreign "
+            "INSERT INTO scores_foreign "
             "VALUES (:id, :server, :foreign_score_id, :recipient_id, :has_replay, FALSE, NOW())",
             {
                 "id": new_id,
