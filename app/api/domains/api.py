@@ -990,7 +990,7 @@ async def api_submit_score(
     ngeki: int = Form(...),
     nkatu: int = Form(...),
     mode: int = Form(...),
-    perfect: bool = Form(...),
+    perfect: bool = Form(default=False),
     playtime: int = Form(...),
     grade: str = Form(...),
     server: str = Form(...),
