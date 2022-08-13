@@ -994,8 +994,7 @@ async def api_submit_score(
     playtime: int = Form(...),
     grade: str = Form(...),
     server: str = Form(...),
-    identifier_type: str = Form(...),
-    outer_identifier: str = Form(...),
+    foreign_score_id: int = Form(default=0),
     userid: int = Form(...),
 ):
     # Check information about outer submission record
@@ -1003,11 +1002,6 @@ async def api_submit_score(
         return {
             "status": 400,
             "msg": "form data server is not in following values: bancho, ppysb, akatsuki, offline",
-        }
-    if identifier_type not in ["replay_username", "server_userid", "replay_id"]:
-        return {
-            "status": 400,
-            "msg": "form data identifier_type is not in following values: replay_username, server_id, replay_id",
         }
     # Check whether we have the map
     bmap = await Beatmap.from_md5(map_md5)
@@ -1047,7 +1041,7 @@ async def api_submit_score(
     # Insert score into sql progress
     is_info_table_exist = (
         await db_conn.fetch_one(
-            "SELECT table_name FROM information_schema.TABLES WHERE table_name = 'scores_outer'",
+            "SELECT table_name FROM information_schema.TABLES WHERE table_name = 'scores_foreign'",
         )
     ) is not None
     new_id = await db_conn.execute(
@@ -1085,13 +1079,12 @@ async def api_submit_score(
     )
     if is_info_table_exist:
         await db_conn.execute(
-            "INSERT INTO scores_outer "
-            "VALUES (:id, :server, :identifier_type, :outer_identifier, :recipient_id, :has_replay, FALSE, NOW())",
+            "INSERT INTO foreign "
+            "VALUES (:id, :server, :foreign_score_id, :recipient_id, :has_replay, FALSE, NOW())",
             {
                 "id": new_id,
                 "server": server,
-                "identifier_type": identifier_type,
-                "outer_identifier": outer_identifier,
+                "foreign_score_id": foreign_score_id,
                 "recipient_id": user.id,
                 "has_replay": replay_file is not None,
             },
