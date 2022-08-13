@@ -1,8 +1,7 @@
-CREATE TABLE `scores_outer`  (
+CREATE TABLE `scores_foreign`  (
   `id` int NOT NULL,
   `server` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `identifier_type` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `outer_identifier` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `foreign_score_id` int NOT NULL,
   `recipient_id` int NOT NULL,
   `has_replay` tinyint(1) NOT NULL,
   `is_verified` tinyint(1) NOT NULL,
