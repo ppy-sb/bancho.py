@@ -1010,6 +1010,11 @@ async def api_submit_score(
         }
     # Check whether we have the map
     bmap = await Beatmap.from_md5(map_md5)
+    if bmap is None:
+        return {
+            "status": 400,
+            "msg": "Couldn't find a beatmap on that md5",
+        }
     osu_file_path = BEATMAPS_PATH / f"{bmap.id}.osu"
     await ensure_local_osu_file(osu_file_path, bmap.id, bmap.md5)
     # Make a score manually to calc pp and acc
