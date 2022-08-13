@@ -14,6 +14,7 @@ from fastapi import status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.utils import get_openapi
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from fastapi.responses import ORJSONResponse
 from fastapi.responses import Response
@@ -83,7 +84,18 @@ def init_exception_handlers(asgi_app: BanchoAPI) -> None:
 def init_middlewares(asgi_app: BanchoAPI) -> None:
     """Initialize our app's middleware stack."""
     asgi_app.add_middleware(middlewares.MetricsMiddleware)
-
+    # Because we need the bearer in the header. Origins must be set explicitly
+    origins = [
+        f"http://osu.{app.settings.DOMAIN}",
+        f"https://osu.{app.settings.DOMAIN}"
+    ]
+    asgi_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"]
+        )
     @asgi_app.middleware("http")
     async def http_middleware(
         request: Request,
