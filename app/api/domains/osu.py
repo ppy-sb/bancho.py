@@ -290,10 +290,10 @@ async def osuGetBeatmapInfo(
         # convert from bancho.py -> osu!api status
         row["status"] = bancho_to_osuapi_status(row["status"])
 
-        # try to get the user's grades on the map osu!
-        # only allows us to send back one per gamemode,
-        # so we'll just send back relax for the time being..
-        # XXX: perhaps user-customizable in the future?
+        # try to get the user's grades on the map
+        # NOTE: osu! only allows us to send back one per gamemode,
+        #       so we've decided to send back *vanilla* grades.
+        #       (in theory we could make this user-customizable)
         grades = ["N", "N", "N", "N"]
 
         await db_conn.execute(
@@ -303,7 +303,7 @@ async def osuGetBeatmapInfo(
             {
                 "map_md5": row["md5"],
                 "user_id": player.id,
-                "mode": player.status.mode,
+                "mode": player.status.mode.as_vanilla,
             },
         )
 
@@ -314,7 +314,7 @@ async def osuGetBeatmapInfo(
             {
                 "map_md5": row["md5"],
                 "user_id": player.id,
-                "mode": player.status.mode,
+                "mode": player.status.mode.as_vanilla,
             },
         ):
             grades[score["mode"]] = score["grade"]
@@ -454,10 +454,11 @@ async def lastFM(
     """
 
 
-# bancho.py supports both cheesegull mirrors & chimu.moe.
-# chimu.moe handles things a bit differently than cheesegull,
+# bancho.py supports cheesegull mirrors, chimu.moe and nasuya.xyz.
+# chimu.moe and nasuya.xyz handle things a bit differently than cheesegull,
 # and has some extra features we'll eventually use more of.
 USING_CHIMU = "chimu.moe" in app.settings.MIRROR_URL
+USING_NASUYA = "nasuya.xyz" in app.settings.MIRROR_URL
 
 DIRECT_SET_INFO_FMTSTR = (
     "{{{setid_spelling}}}.osz|{{Artist}}|{{Title}}|{{Creator}}|"
@@ -482,6 +483,8 @@ async def osuSearchHandler(
 ):
     if USING_CHIMU:
         search_url = f"{app.settings.MIRROR_URL}/search"
+    elif USING_NASUYA:
+        search_url = f"{app.settings.MIRROR_URL}/api/v1/search"
     else:
         search_url = f"{app.settings.MIRROR_URL}/api/search"
 
@@ -499,6 +502,10 @@ async def osuSearchHandler(
         # convert to osu!api status
         params["status"] = RankedStatus.from_osudirect(ranked_status).osu_api
 
+    if USING_NASUYA:
+        # nasuya can serialize to direct for us
+        params["osu_direct"] = True
+
     async with app.state.services.http_client.get(search_url, params=params) as resp:
         if resp.status != status.HTTP_200_OK:
             if USING_CHIMU:
@@ -507,6 +514,10 @@ async def osuSearchHandler(
                     return b"0"
 
             return b"-1\nFailed to retrieve data from the beatmap mirror."
+
+        if USING_NASUYA:
+            # nasuya returns in osu!direct format
+            return await resp.read()
 
         result = await resp.json()
 
@@ -555,7 +566,7 @@ async def osuSearchSetHandler(
     # TODO: refactor this to use the new internal bmap(set) api
 
     # Since we only need set-specific data, we can basically
-    # just do same same query with either bid or bsid.
+    # just do same query with either bid or bsid.
 
     if map_set_id is not None:
         # this is just a normal request
@@ -673,7 +684,7 @@ async def osuSubmitModularSelector(
     """Handle a score submission from an osu! client with an active session."""
 
     # NOTE: the bancho protocol uses the "score" parameter name for both
-    # the base64'ed score data, as well as the replay file in the multipart
+    # the base64'ed score data, and the replay file in the multipart
     # starlette/fastapi do not support this, so we've moved it out
     score_parameters = parse_form_data_score_params(await request.form())
     if score_parameters is None:
@@ -1035,7 +1046,7 @@ async def osuSubmitModularSelector(
             # fetch scores sorted by pp for total acc/pp calc
             # NOTE: we select all plays (and not just top100)
             # because bonus pp counts the total amount of ranked
-            # scores. i'm aware this scales horribly and it'll
+            # scores. I'm aware this scales horribly, and it'll
             # likely be split into two queries in the future.
             best_scores = await db_conn.fetch_all(
                 "SELECT s.pp, s.acc FROM scores s "
@@ -1427,7 +1438,7 @@ async def getScores(
 
     if not bmap:
         # map not found, figure out whether it needs an
-        # update or isn't submitted using it's filename.
+        # update or isn't submitted using its filename.
 
         if has_set_id and map_set_id not in app.state.cache.beatmapset:
             # set not cached, it doesn't exist
@@ -1650,7 +1661,7 @@ async def osuMarkAsRead(
 
 @router.get("/web/osu-getseasonal.php")
 async def osuSeasonal():
-    return ORJSONResponse(app.settings.SEASONAL_BGS._items)
+    return ORJSONResponse(app.settings.SEASONAL_BGS)
 
 
 @router.get("/web/bancho_connect.php")
@@ -1820,7 +1831,7 @@ async def get_updated_beatmap(
         osu_file_path.exists()
         and res["md5"] == hashlib.md5(osu_file_path.read_bytes()).hexdigest()
     ):
-        # up to date map found on disk.
+        # up-to-date map found on disk.
         content = osu_file_path.read_bytes()
     else:
         # map not found, or out of date; get from osu!

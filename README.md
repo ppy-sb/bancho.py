@@ -137,7 +137,7 @@ sql commands that can be run in sequence to create the base state we want.
 mysql -u YOUR_DB_USER -p YOUR_DB_NAME < migrations/base.sql
 ```
 
-## creating an ssl certificate (to allow https traffic)
+## creating a ssl certificate (to allow https traffic)
 ```sh
 # you'll need to change:
 # - YOUR_EMAIL_ADDRESS
@@ -187,7 +187,7 @@ cp .env .env
 nano .env
 ```
 
-## congratulations! you just setup an osu! private server
+## congratulations! you just set up an osu! private server
 
 if everything went well, you should be able to start your server up:
 
@@ -206,7 +206,6 @@ and you should see something along the lines of:
     |   ├── api                 # code related to handling external requests
     |   |   ├── domains           # endpoints that can be reached from externally
     |   |   |   ├── api.py        # endpoints available @ https://api.ppy.sh
-    |   |   |   ├── ava.py        # endpoints available @ https://a.ppy.sh
     |   |   |   ├── cho.py        # endpoints available @ https://c.ppy.sh
     |   |   |   ├── map.py        # endpoints available @ https://b.ppy.sh
     |   |   |   └── osu.py        # endpoints available @ https://osu.ppy.sh
