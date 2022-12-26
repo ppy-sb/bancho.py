@@ -29,7 +29,7 @@ from app.constants import regexes
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
 from app.constants.privileges import Privileges
-from app.objects.beatmap import Beatmap
+from app.objects.beatmap import Beatmap, BeatmapSet
 from app.objects.beatmap import ensure_local_osu_file
 from app.objects.clan import Clan
 from app.objects.player import Player
@@ -973,6 +973,23 @@ async def api_get_pool(
         },
     )
 
+@router.get("/update_maps")
+async def api_update_maps(
+    user: Player = Security(get_player, scopes=["Staff"]),
+    sid: int = Query(...)):
+    set = await BeatmapSet.from_bsid(sid)
+    if set is None:
+        return ORJSONResponse(
+            {"status": "Beatmapset not found."},
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    await set.force_update()
+    return ORJSONResponse(
+        {
+            "status": "Success!",
+            "sid": set.id
+        }, 
+        status_code=status.HTTP_200_OK)
 
 @router.post("/submit_score")
 async def api_submit_score(

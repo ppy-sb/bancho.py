@@ -617,6 +617,18 @@ async def get_apikey(ctx: Context) -> Optional[str]:
 # manage  the server's state of beatmaps.
 """
 
+@command(Privileges.NOMINATOR, hidden=True)
+async def _update_maps(ctx: Context) -> Optional[str]:
+    if time.time() >= ctx.player.last_np["timeout"]:
+        return "Please /np a map first!"
+
+    bmap = ctx.player.last_np["bmap"]
+    try:
+        await bmap.set.force_update()
+    except:
+        return "An error occurred when updating maps."
+    return "All maps from the set are updated!"
+
 
 @command(Privileges.NOMINATOR, aliases=["reqs"], hidden=True)
 async def requests(ctx: Context) -> Optional[str]:
