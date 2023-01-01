@@ -6,8 +6,11 @@ from typing import Iterable
 from typing import Optional
 from typing import TypedDict
 
-from akatsuki_pp_py import Beatmap
-from akatsuki_pp_py import Calculator
+from ppysb_pp_py import Beatmap
+from ppysb_pp_py import Calculator
+from ppysb_pp_py import ScoreParams
+
+from app.constants.mods import Mods
 
 
 @dataclass
@@ -25,6 +28,7 @@ class ScoreParams:
     ngeki: Optional[int] = None
     nkatu: Optional[int] = None
     nmiss: Optional[int] = None
+    score: Optional[int] = None
 
 
 class DifficultyRating(TypedDict):
@@ -51,7 +55,15 @@ def calculate_performances(
         #     and score.nmiss is None
         # ):
         #     raise ValueError("Either acc OR 300/100/50/geki/katu/miss must be present")
-
+        
+        # To avoid some problems
+        if score.mods & Mods.SCOREV2:
+            score.mods &= ~Mods.SCOREV2
+        if score.mods & Mods.NOFAIL:
+            score.mods &= ~Mods.NOFAIL
+        if score.score is None or score.score < 0:
+            score.score = 0
+            
         calculator = Calculator(
             mode=score.mode,
             mods=score.mods if score.mods is not None else 0,
@@ -63,7 +75,9 @@ def calculate_performances(
             n_geki=score.ngeki,
             n_katu=score.nkatu,
             n_misses=score.nmiss,
+            score=score.score
         )
+        
         result = calculator.performance(calc_bmap)
 
         pp = result.pp

@@ -16,7 +16,6 @@ import app.utils
 from app.constants.clientflags import ClientFlags
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
-from app.objects import performance
 from app.objects.beatmap import Beatmap
 from app.usecases.performance import ScoreParams
 from app.utils import escape_enum
@@ -350,13 +349,13 @@ class Score:
             n100=self.n100,
             n50=self.n50,
             nmiss=self.nmiss,
+            score=self.score
         )
 
         result = app.usecases.performance.calculate_performances(
             osu_file_path=str(osu_file_path),
             scores=[score_args],
         )
-        result = performance.calculate(mode_vn, str(osu_file_path), [param])[0]
         return result.pp, result.stars
 
     async def calculate_status(self) -> None:
