@@ -18,6 +18,7 @@ from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
 from app.objects import performance
 from app.objects.beatmap import Beatmap
+from app.usecases.performance import ScoreParams
 from app.utils import escape_enum
 from app.utils import pymysql_encode
 
@@ -336,16 +337,24 @@ class Score:
     def calculate_performance(self, osu_file_path: Path) -> tuple[float, float]:
         """Calculate PP and star rating for our score."""
         mode_vn = self.mode.as_vanilla
-        param = ScoreParams(
-            mods=self.mods,
+
+        score_args = ScoreParams(
+            mode=mode_vn,
+            mods=int(self.mods),
+            combo=self.max_combo,
+            # prefer to use the score's specific params that add up to the acc
             acc=self.acc,
+            ngeki=self.ngeki,
             n300=self.n300,
+            nkatu=self.nkatu,
             n100=self.n100,
             n50=self.n50,
-            nMisses=self.nmiss,
-            nKatu=self.nkatu,
-            combo=self.max_combo,
-            score=self.score,
+            nmiss=self.nmiss,
+        )
+
+        result = app.usecases.performance.calculate_performances(
+            osu_file_path=str(osu_file_path),
+            scores=[score_args],
         )
         result = performance.calculate(mode_vn, str(osu_file_path), [param])[0]
         return result.pp, result.stars
