@@ -13,6 +13,7 @@ from ppysb_pp_py import ScoreParams
 
 import app.state
 import app.utils
+import app.usecases.performance
 from app.constants.clientflags import ClientFlags
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
@@ -356,7 +357,8 @@ class Score:
             osu_file_path=str(osu_file_path),
             scores=[score_args],
         )
-        return result.pp, result.stars
+
+        return result[0]["performance"], result[0]["star_rating"]
 
     async def calculate_status(self) -> None:
         """Calculate the submission status of a submitted score."""
