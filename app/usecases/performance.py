@@ -66,7 +66,7 @@ def calculate_performances(
         if score.score is None or score.score < 0:
             score.score = 0
             
-        sb_param = ParamsSB(mods = score.mods, acc=score.acc, n300=score.n300, n100=score.n100, n50=score.n50, nMisses=score.nmiss, nKatu=score.nkatu, combo=score.combo, score=score.score)
+        sb_param = ParamsSB(mods = score.mods if score.mods is not None else 0, acc=score.acc, n300=score.n300, n100=score.n100, n50=score.n50, nMisses=score.nmiss, nKatu=score.nkatu, combo=score.combo, score=score.score)
       
         # New PP System is not prepared, fallback to old formula      
         result = calculate_aisuru(osu_file_path, sb_param)
