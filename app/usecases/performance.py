@@ -10,6 +10,7 @@ from rosu_pp_py import Beatmap
 from rosu_pp_py import Calculator
 
 from ppysb_pp_py import Calculator as CalculatorSB
+from ppysb_pp_py import ScoreParams as ParamsSB
 
 from app.constants.mods import Mods
 
@@ -64,9 +65,11 @@ def calculate_performances(
             score.mods &= ~Mods.NOFAIL
         if score.score is None or score.score < 0:
             score.score = 0
+            
+        sb_param = ParamsSB(mods = score.mods, acc=score.acc, n300=score.n300, n100=score.n100, n50=score.n50, nMisses=score.nmiss, nKatu=score.nkatu, combo=score.combo, score=score.score)
       
         # New PP System is not prepared, fallback to old formula      
-        result = calculate_aisuru(osu_file_path, score)
+        result = calculate_aisuru(osu_file_path, sb_param)
         results.append(result)
         continue
             
@@ -113,6 +116,7 @@ def calculate_aisuru(
         param.mods &= ~Mods.NOFAIL
     if param.score is None or param.score < 0:
         param.score = 0
+    result = {}
     try:
         (result,) = calculator.calculate(param)
     except:
