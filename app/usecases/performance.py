@@ -9,6 +9,8 @@ from typing import TypedDict
 from rosu_pp_py import Beatmap
 from rosu_pp_py import Calculator
 
+from ppysb_pp_py import Calculator as CalculatorSB
+
 from app.constants.mods import Mods
 
 
@@ -62,6 +64,11 @@ def calculate_performances(
             score.mods &= ~Mods.NOFAIL
         if score.score is None or score.score < 0:
             score.score = 0
+      
+        # New PP System is not prepared, fallback to old formula      
+        result = calculate_aisuru(osu_file_path, score)
+        results.append(result)
+        continue
             
         calculator = Calculator(
             mode=score.mode,
@@ -92,3 +99,29 @@ def calculate_performances(
         results.append({"performance": pp, "star_rating": sr})
 
     return results
+
+
+def calculate_aisuru(
+    osu_file_path: str,
+    param: ScoreParams,
+):
+    calculator = CalculatorSB(osu_file_path)
+    # V2 & NF makes not influence
+    if param.mods & Mods.SCOREV2:
+        param.mods &= ~Mods.SCOREV2
+    if param.mods & Mods.NOFAIL:
+        param.mods &= ~Mods.NOFAIL
+    if param.score is None or param.score < 0:
+        param.score = 0
+    try:
+        (result,) = calculator.calculate(param)
+    except:
+        result.pp = 0
+    # To keep pp value away from database limitation.
+    if result.pp > 8192:
+        result.pp = 8192
+        
+    return {
+        "performance": result.pp,
+        "star_rating": result.stars
+    }
