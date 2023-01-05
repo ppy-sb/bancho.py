@@ -59,10 +59,11 @@ def calculate_performances(
         #     raise ValueError("Either acc OR 300/100/50/geki/katu/miss must be present")
         
         # To avoid some problems
-        if score.mods & Mods.SCOREV2:
-            score.mods &= ~Mods.SCOREV2
-        if score.mods & Mods.NOFAIL:
-            score.mods &= ~Mods.NOFAIL
+        if score.mods is not None:
+            if score.mods & Mods.SCOREV2:
+                score.mods &= ~Mods.SCOREV2
+            if score.mods & Mods.NOFAIL:
+                score.mods &= ~Mods.NOFAIL
         if score.score is None or score.score < 0:
             score.score = 0
             
