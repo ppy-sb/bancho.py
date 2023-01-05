@@ -18,8 +18,8 @@ from typing import Sequence
 import aiohttp
 import aioredis
 import databases
-from akatsuki_pp_py import Beatmap
-from akatsuki_pp_py import Calculator
+from rosu_pp_py import Beatmap
+from rosu_pp_py import Calculator
 
 sys.path.insert(0, os.path.abspath(os.pardir))
 os.chdir(os.path.abspath(os.pardir))

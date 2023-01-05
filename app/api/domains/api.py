@@ -36,7 +36,6 @@ from app.objects.player import Player
 from app.objects.score import Grade
 from app.objects.score import Score
 from app.objects.score import SubmissionStatus
-from app.state.services import acquire_db_conn
 
 AVATARS_PATH = SystemPath.cwd() / ".data/avatars"
 BEATMAPS_PATH = SystemPath.cwd() / ".data/osu"
@@ -1014,7 +1013,6 @@ async def api_update_maps(
 async def api_submit_score(
     user: Player = Security(get_player, scopes=["Staff"]),
     replay_file: UploadFile = File(default=None),
-    db_conn: databases.core.Connection = Depends(acquire_db_conn),
     map_md5: str = Form(...),
     score_value: int = Form(..., alias="score"),
     max_combo: int = Form(...),
@@ -1074,7 +1072,7 @@ async def api_submit_score(
     await score.calculate_status()
     # This is required in the submission like progress
     if score.status == SubmissionStatus.BEST:
-        await db_conn.execute(
+        await app.state.services.database.execute(
             "UPDATE scores SET status = 1 "
             "WHERE status = 2 AND map_md5 = :map_md5 "
             "AND userid = :user_id AND mode = :mode",
@@ -1086,11 +1084,11 @@ async def api_submit_score(
         )
     # Insert score into sql progress
     is_info_table_exist = (
-        await db_conn.fetch_one(
+        await app.state.services.database.fetch_one(
             "SELECT table_name FROM information_schema.TABLES WHERE table_name = 'scores_foreign'",
         )
     ) is not None
-    new_id = await db_conn.execute(
+    new_id = await app.state.services.database.execute(
         "INSERT INTO scores "
         "VALUES (NULL, "
         ":map_md5, :score, :pp, :acc, "
@@ -1124,7 +1122,7 @@ async def api_submit_score(
         },
     )
     if is_info_table_exist:
-        await db_conn.execute(
+        await app.state.services.database.execute(
             "INSERT INTO scores_foreign "
             "VALUES (:id, :server, :foreign_score_id, :recipient_id, :has_replay, FALSE, NOW())",
             {

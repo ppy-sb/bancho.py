@@ -6,9 +6,8 @@ from typing import Iterable
 from typing import Optional
 from typing import TypedDict
 
-from ppysb_pp_py import Beatmap
-from ppysb_pp_py import Calculator
-from ppysb_pp_py import ScoreParams
+from rosu_pp_py import Beatmap
+from rosu_pp_py import Calculator
 
 from app.constants.mods import Mods
 
