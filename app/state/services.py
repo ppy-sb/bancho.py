@@ -44,7 +44,7 @@ SQL_UPDATES_FILE = Path.cwd() / "migrations/migrations.sql"
 
 http_client: aiohttp.ClientSession
 database = databases.Database(app.settings.DB_DSN)
-redis: aioredis.Redis = aioredis.from_url(app.settings.REDIS_DSN)
+redis: aioredis.Redis = aioredis.from_url(app.settings.REDIS_DSN, decode_responses=True)
 
 geoloc_db: Optional[geoip2.database.Reader] = None
 if GEOLOC_DB_FILE.exists():
