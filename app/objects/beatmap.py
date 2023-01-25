@@ -584,7 +584,7 @@ class BeatmapSet:
             # ranked status has been edited on bancho.py
             bmap.frozen or
             # ranked status is ranked or approved on bancho
-            bmap.status is RankedStatus.Ranked
+            bmap.status in [RankedStatus.Ranked]
             for bmap in self.maps
         )
 
@@ -662,6 +662,10 @@ class BeatmapSet:
                         bmap = old_maps[old_id]
                         bmap._parse_from_osuapi_resp(new_map)
                         updated_maps.append(bmap)
+                    else:
+                        # map is the same, make no changes
+                        updated_maps.append(old_map)  # TODO: is this needed?
+
             # find maps that aren't in our current state, and add them
             for new_id, new_map in new_maps.items():
                 if new_id not in old_maps:
