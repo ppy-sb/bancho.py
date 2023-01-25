@@ -56,35 +56,36 @@ async def recalculate_score(
     beatmap_path: Path,
     ctx: Context,
 ) -> None:
-    beatmap = ctx.beatmaps.get(score["map_id"])
-    if beatmap is None:
-        beatmap = Beatmap(path=str(beatmap_path))
-        ctx.beatmaps[score["map_id"]] = beatmap
+    try:
+        beatmap = ctx.beatmaps.get(score["map_id"])
+        if beatmap is None:
+            beatmap = Beatmap(path=str(beatmap_path))
+            ctx.beatmaps[score["map_id"]] = beatmap
 
-    calculator = Calculator(
-        mode=GameMode(score["mode"]).as_vanilla,
-        mods=score["mods"],
-        acc=score["acc"],
-        n_misses=score["nmiss"],
-        combo=score["max_combo"],
-    )
-    attrs = calculator.performance(beatmap)
-
-    new_pp: float = attrs.pp  # type: ignore
-    if math.isnan(new_pp) or math.isinf(new_pp):
-        new_pp = 0.0
-
-    new_pp = min(new_pp, 9999.999)
-
-    await ctx.database.execute(
-        "UPDATE scores SET pp = :new_pp WHERE id = :id",
-        {"new_pp": new_pp, "id": score["id"]},
-    )
-
-    if DEBUG:
-        print(
-            f"Recalculated score ID {score['id']} ({score['pp']:.3f}pp -> {new_pp:.3f}pp)",
+        calculator = Calculator(
+            mode=GameMode(score["mode"]).as_vanilla,
+            mods=score["mods"],
+            acc=score["acc"],
+            n_misses=score["nmiss"],
+            combo=score["max_combo"],
         )
+        attrs = calculator.performance(beatmap)
+        new_pp: float = attrs.pp  # type: ignore
+        if math.isnan(new_pp) or math.isinf(new_pp):
+            new_pp = 0.0
+        new_pp = min(new_pp, 9999.999)
+        await ctx.database.execute(
+            "UPDATE scores SET pp = :new_pp WHERE id = :id",
+            {"new_pp": new_pp, "id": score["id"]},
+        )
+
+        if DEBUG:
+            print(
+                f"Recalculated score ID {score['id']} ({score['pp']:.3f}pp -> {new_pp:.3f}pp)",
+            )
+    except:
+        print("Calculation issue occurred, do nothing")
+        return
 
 
 async def process_score_chunk(
@@ -223,6 +224,8 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
     redis = await aioredis.from_url(app.settings.REDIS_DSN)
 
     ctx = Context(db, redis)
+    
+    print(len(args.mode))
 
     for mode in args.mode:
         mode = GameMode(int(mode))
