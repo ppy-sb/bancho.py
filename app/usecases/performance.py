@@ -9,9 +9,6 @@ from typing import TypedDict
 from rosu_pp_py import Beatmap
 from rosu_pp_py import Calculator
 
-from ppysb_pp_py import Calculator as CalculatorSB
-from ppysb_pp_py import ScoreParams as ParamsSB
-
 from app.constants.mods import Mods
 
 
@@ -67,13 +64,6 @@ def calculate_performances(
         if score.score is None or score.score < 0:
             score.score = 0
             
-        sb_param = ParamsSB(mods = score.mods if score.mods is not None else 0, acc=score.acc, n300=score.n300, n100=score.n100, n50=score.n50, nMisses=score.nmiss, nKatu=score.nkatu, combo=score.combo, score=score.score)
-      
-        # New PP System is not prepared, fallback to old formula      
-        result = calculate_aisuru(osu_file_path, sb_param)
-        results.append(result)
-        continue
-            
         calculator = Calculator(
             mode=score.mode,
             mods=score.mods if score.mods is not None else 0,
@@ -85,7 +75,6 @@ def calculate_performances(
             n_geki=score.ngeki,
             n_katu=score.nkatu,
             n_misses=score.nmiss,
-            score=score.score
         )
         
         result = calculator.performance(calc_bmap)
@@ -103,30 +92,3 @@ def calculate_performances(
         results.append({"performance": pp, "star_rating": sr})
 
     return results
-
-
-def calculate_aisuru(
-    osu_file_path: str,
-    param: ScoreParams,
-):
-    calculator = CalculatorSB(osu_file_path)
-    # V2 & NF makes not influence
-    if param.mods & Mods.SCOREV2:
-        param.mods &= ~Mods.SCOREV2
-    if param.mods & Mods.NOFAIL:
-        param.mods &= ~Mods.NOFAIL
-    if param.score is None or param.score < 0:
-        param.score = 0
-    result = {}
-    try:
-        (result,) = calculator.calculate(param)
-    except:
-        result.pp = 0
-    # To keep pp value away from database limitation.
-    if result.pp > 8192:
-        result.pp = 8192
-        
-    return {
-        "performance": result.pp,
-        "star_rating": result.stars
-    }

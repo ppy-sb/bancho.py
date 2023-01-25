@@ -42,6 +42,7 @@ from fastapi.responses import Response
 from fastapi.routing import APIRouter
 from py3rijndael import Pkcs7Padding
 from py3rijndael import RijndaelCbc
+import requests
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
 import app.packets
@@ -502,12 +503,7 @@ async def osuSearchHandler(
             return await resp.read()
 
         result = await resp.json()
-
-        if USING_CHIMU:
-            if result["code"] != 200:
-                return b"-1\nFailed to retrieve data from the beatmap mirror."
-
-            result = result["data"]
+        result = result["data"]
 
     lresult = len(result)  # send over 100 if we receive
     # 100 matches, so the client
@@ -1464,7 +1460,7 @@ async def getScores(
                 if map_filename == bmap.filename:
                     map_exists = True
                     break
-            else:
+            else: 
                 map_exists = False
         else:
             # we can't find it on the osu!api by md5,
@@ -1795,7 +1791,7 @@ async def get_osz(
         r = requests.get(
             f"http://ip-api.com/json/{request.headers.get('x-real-ip')}",
         ).json()
-        if (r["status"] == "success") & (r["country"] == "China"):
+        if r["status"] == "success" and r["country"] == "China":
             url = f"https://dl.sayobot.cn/beatmaps/download/novideo/{map_set_id}"
 
     return RedirectResponse(
