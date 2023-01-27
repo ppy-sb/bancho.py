@@ -178,7 +178,6 @@ async def recalculate_mode_users(mode: GameMode, ctx: Context) -> None:
 
     for id_chunk in divide_chunks(user_ids, 100):
         await process_user_chunk(id_chunk, mode, ctx)
-        await asyncio.sleep(0.1)
 
 
 async def recalculate_mode_scores(mode: GameMode, ctx: Context) -> None:
@@ -193,7 +192,6 @@ async def recalculate_mode_scores(mode: GameMode, ctx: Context) -> None:
 
     for score_chunk in divide_chunks(scores, 100):
         await process_score_chunk(score_chunk, ctx)
-        await asyncio.sleep(0.1)
 
 
 async def main(argv: Optional[Sequence[str]] = None) -> int:
