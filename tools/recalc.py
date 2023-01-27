@@ -78,8 +78,6 @@ async def recalculate_score(
             "UPDATE scores SET pp = :new_pp WHERE id = :id",
             {"new_pp": new_pp, "id": score["id"]},
         )
-        
-        asyncio.sleep(0.01)
 
         if DEBUG:
             print(
@@ -159,8 +157,6 @@ async def recalculate_user(
 
     if DEBUG:
         print(f"Recalculated user ID {id} ({pp:.3f}pp, {acc:.3f}%)")
-        
-    asyncio.sleep(0.1)
 
 
 async def process_user_chunk(
@@ -182,6 +178,7 @@ async def recalculate_mode_users(mode: GameMode, ctx: Context) -> None:
 
     for id_chunk in divide_chunks(user_ids, 100):
         await process_user_chunk(id_chunk, mode, ctx)
+        await asyncio.sleep(0.1)
 
 
 async def recalculate_mode_scores(mode: GameMode, ctx: Context) -> None:
@@ -196,7 +193,7 @@ async def recalculate_mode_scores(mode: GameMode, ctx: Context) -> None:
 
     for score_chunk in divide_chunks(scores, 100):
         await process_score_chunk(score_chunk, ctx)
-        asyncio.sleep(0.1)
+        await asyncio.sleep(0.1)
 
 
 async def main(argv: Optional[Sequence[str]] = None) -> int:
