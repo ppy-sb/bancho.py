@@ -5,6 +5,7 @@ from typing import Any
 from typing import Optional
 
 import app.state.services
+from app.utils import build_select_query, build_update_query
 
 # +------------+--------------+------+-----+---------+----------------+
 # | Field      | Type         | Null | Key | Default | Extra          |
@@ -67,16 +68,14 @@ async def fetch_one(
     """Fetch a single channel."""
     if id is None and name is None:
         raise ValueError("Must provide at least one parameter.")
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM channels
-         WHERE id = COALESCE(:id, id)
-           AND name = COALESCE(:name, name)
-    """
-    params = {
-        "id": id,
-        "name": name,
-    }
+    
+    if (name is not None):
+        query = f"SELECT {READ_PARAMS} FROM channels WHERE name = :name"
+        params = {"name": name}
+    
+    if (id is not None):
+        query = f"SELECT {READ_PARAMS} FROM channels WHERE id = :id"
+        params = {"id": id}
 
     rec = await app.state.services.database.fetch_one(query, params)
     return dict(rec) if rec is not None else None
@@ -89,19 +88,14 @@ async def fetch_count(
 ) -> int:
     if read_priv is None and write_priv is None and auto_join is None:
         raise ValueError("Must provide at least one parameter.")
-
-    query = """\
-        SELECT COUNT(*) AS count
-          FROM channels
-         WHERE read_priv = COALESCE(:read_priv, read_priv)
-           AND write_priv = COALESCE(:write_priv, write_priv)
-           AND auto_join = COALESCE(:auto_join, auto_join)
-    """
-    params = {
+    
+    filter = {
         "read_priv": read_priv,
         "write_priv": write_priv,
         "auto_join": auto_join,
     }
+    
+    query, params = build_select_query("SELECT COUNT(*) AS count FROM channels", filter)
 
     rec = await app.state.services.database.fetch_one(query, params)
     assert rec is not None
@@ -116,18 +110,14 @@ async def fetch_many(
     page_size: Optional[int] = None,
 ) -> list[dict[str, Any]]:
     """Fetch multiple channels from the database."""
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM channels
-         WHERE read_priv = COALESCE(:read_priv, read_priv)
-           AND write_priv = COALESCE(:write_priv, write_priv)
-           AND auto_join = COALESCE(:auto_join, auto_join)
-    """
-    params = {
+    
+    filter = {
         "read_priv": read_priv,
         "write_priv": write_priv,
         "auto_join": auto_join,
     }
+    
+    query, params = build_select_query(f"SELECT {READ_PARAMS} FROM channels", filter)
 
     if page is not None and page_size is not None:
         query += """\
@@ -149,21 +139,16 @@ async def update(
     auto_join: Optional[bool] = None,
 ) -> Optional[dict[str, Any]]:
     """Update a channel in the database."""
-    query = """\
-        UPDATE channels
-           SET topic = COALESCE(:topic, topic),
-               read_priv = COALESCE(:read_priv, read_priv),
-               write_priv = COALESCE(:write_priv, write_priv),
-               auto_join = COALESCE(:auto_join, auto_join)
-         WHERE name = :name
-    """
-    params = {
-        "name": name,
+    
+    values = {
         "topic": topic,
         "read_priv": read_priv,
         "write_priv": write_priv,
         "auto_join": auto_join,
     }
+    
+    query, params = build_update_query("UPDATE channels", values, {"name": name})
+    
     await app.state.services.database.execute(query, params)
 
     query = f"""\

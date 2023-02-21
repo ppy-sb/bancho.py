@@ -470,3 +470,28 @@ def has_png_headers_and_trailers(data_view: memoryview) -> bool:
         data_view[:8] == b"\x89PNG\r\n\x1a\n"
         and data_view[-8] == b"\x49END\xae\x42\x60\x82"
     )
+    
+    
+# {sentence} WHERE 1=1 AND field1=A AND field2=B
+def build_select_query(sentence: str, filter: dict[str, Any]):
+    base = sentence.rstrip() + ' WHERE 1=1 '  # For the convenience to append AND
+    params = filter.copy()
+    for key, value in filter.items():
+        if value is not None:
+            base += f"""AND {key} = :{key} """
+        else:
+            params.pop(key)
+    print(base.strip(), params)
+    return base.strip(), params
+
+
+# {sentence} SET field1=A, field2=B WHERE field1=A AND field2=B
+def build_update_query(sentence: str, values: dict[str, Any], filter: dict[str, Any]):
+    base = sentence.rstrip() + ' SET '  # For the convenience to append AND
+    params = filter.copy()
+    for key, value in values.items():
+        if value is not None:
+            base += f"""{key} = :{key}, """
+            params[key] = value
+    print(build_select_query(base.strip(', '), filter)[0], params)
+    return build_select_query(base.strip(', '), filter)[0], params

@@ -5,6 +5,7 @@ from typing import Any
 from typing import Optional
 
 import app.state.services
+from app.utils import build_select_query, build_update_query
 
 # +-----------------+-----------------+------+-----+---------+----------------+
 # | Field           | Type            | Null | Key | Default | Extra          |
@@ -128,22 +129,16 @@ async def fetch_count(
     mode: Optional[int] = None,
     user_id: Optional[int] = None,
 ) -> int:
-    query = """\
-        SELECT COUNT(*) AS count
-          FROM scores
-         WHERE map_md5 = COALESCE(:map_md5, map_md5)
-           AND mods = COALESCE(:mods, mods)
-           AND status = COALESCE(:status, status)
-           AND mode = COALESCE(:mode, mode)
-           AND userid = COALESCE(:userid, userid)
-    """
-    params = {
+    
+    filter = {
         "map_md5": map_md5,
         "mods": mods,
         "status": status,
         "mode": mode,
         "userid": user_id,
     }
+    
+    query, params = build_select_query(f"SELECT COUNT(*) AS count FROM scores", filter)
     rec = await app.state.services.database.fetch_one(query, params)
     assert rec is not None
     return rec["count"]
@@ -158,22 +153,15 @@ async def fetch_many(
     page: Optional[int] = None,
     page_size: Optional[int] = None,
 ) -> list[dict[str, Any]]:
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM scores
-         WHERE map_md5 = COALESCE(:map_md5, map_md5)
-           AND mods = COALESCE(:mods, mods)
-           AND status = COALESCE(:status, status)
-           AND mode = COALESCE(:mode, mode)
-           AND userid = COALESCE(:userid, userid)
-    """
-    params = {
+    filter = {
         "map_md5": map_md5,
         "mods": mods,
         "status": status,
         "mode": mode,
         "userid": user_id,
     }
+    query, params = build_select_query(f"SELECT {READ_PARAMS} from scores", filter)
+    
     if page is not None and page_size is not None:
         query += """\
             LIMIT :page_size
@@ -191,17 +179,13 @@ async def update(
     pp: Optional[float] = None,
     status: Optional[int] = None,
 ) -> Optional[dict[str, Any]]:
-    query = """\
-        UPDATE scores
-           SET pp = COALESCE(:pp, pp),
-               status = COALESCE(:status, status)
-         WHERE id = :id
-    """
-    params = {
-        "id": id,
+    
+    values = {
         "pp": pp,
         "status": status,
     }
+    
+    query, params = build_update_query("UPDATE scores", values, {"id": id})
     await app.state.services.database.execute(query, params)
 
     query = f"""\

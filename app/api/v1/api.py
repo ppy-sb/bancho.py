@@ -150,14 +150,23 @@ def format_map_basic(m: Beatmap) -> dict[str, object]:
 async def api_search_players(
     search: Optional[str] = Query(None, alias="q", min=2, max=32),
 ):
+    if (search is None):
+        return ORJSONResponse(
+        {
+            "status": "success",
+            "results": 0,
+            "result": [],
+        },
+    )
+        
     """Search for users on the server by name."""
     rows = await app.state.services.database.fetch_all(
         "SELECT id, name "
         "FROM users "
-        "WHERE name LIKE COALESCE(:name, name) "
+        "WHERE name LIKE :name "
         "AND priv & 3 = 3 "
         "ORDER BY id ASC",
-        {"name": f"%{search}%" if search is not None else None},
+        {"name": f"%{search}%"},
     )
 
     return ORJSONResponse(

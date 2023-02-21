@@ -5,6 +5,7 @@ from typing import Any
 from typing import Optional
 
 import app.state.services
+from app.utils import build_select_query, build_update_query
 
 # +--------------+-----------------+------+-----+---------+----------------+
 # | Field        | Type            | Null | Key | Default | Extra          |
@@ -117,16 +118,13 @@ async def fetch_count(
     player_id: Optional[int] = None,
     mode: Optional[int] = None,
 ) -> int:
-    query = """\
-        SELECT COUNT(*) AS count
-          FROM stats
-         WHERE id = COALESCE(:id, id)
-           AND mode = COALESCE(:mode, mode)
-    """
-    params = {
+    
+    filter = {
         "id": player_id,
         "mode": mode,
     }
+    
+    query, params = build_select_query(f"SELECT COUNT(*) AS count FROM stats", filter)
     rec = await app.state.services.database.fetch_one(query, params)
     assert rec is not None
     return rec["count"]
@@ -138,16 +136,13 @@ async def fetch_many(
     page: Optional[int] = None,
     page_size: Optional[int] = None,
 ) -> list[dict[str, Any]]:
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM stats
-         WHERE id = COALESCE(:id, id)
-           AND mode = COALESCE(:mode, mode)
-    """
-    params = {
+    
+    filter = {
         "id": player_id,
         "mode": mode,
     }
+    
+    query, params = build_select_query(f"SELECT {READ_PARAMS} FROM stats", filter)
 
     if page is not None and page_size is not None:
         query += """\
@@ -180,28 +175,8 @@ async def update(
     a_count: Optional[int] = None,
 ):
     """Update a player stats entry in the database."""
-    query = """\
-        UPDATE stats
-           SET tscore = COALESCE(:tscore, tscore),
-               rscore = COALESCE(:rscore, rscore),
-               pp = COALESCE(:pp, pp),
-               plays = COALESCE(:plays, plays),
-               playtime = COALESCE(:playtime, playtime),
-               acc = COALESCE(:acc, acc),
-               max_combo = COALESCE(:max_combo, max_combo),
-               total_hits = COALESCE(:total_hits, total_hits),
-               replay_views = COALESCE(:replay_views, replay_views),
-               xh_count = COALESCE(:xh_count, xh_count),
-               x_count = COALESCE(:x_count, x_count),
-               sh_count = COALESCE(:sh_count, sh_count),
-               s_count = COALESCE(:s_count, s_count),
-               a_count = COALESCE(:a_count, a_count)
-         WHERE id = :id
-           AND mode = :mode
-    """
-    params = {
-        "id": player_id,
-        "mode": mode,
+    
+    values = {
         "tscore": tscore,
         "rscore": rscore,
         "pp": pp,
@@ -217,6 +192,12 @@ async def update(
         "s_count": s_count,
         "a_count": a_count,
     }
+    
+    query, params = build_update_query("UPDATE stats", values, {
+        "id": player_id,
+        "mode": mode
+        })
+    
     await app.state.services.database.execute(query, params)
 
     query = f"""\

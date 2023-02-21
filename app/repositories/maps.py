@@ -5,6 +5,7 @@ from typing import Any
 from typing import Optional
 
 import app.state.services
+from app.utils import build_select_query, build_update_query
 
 # +--------------+------------------------+------+-----+---------+-------+
 # | Field        | Type                   | Null | Key | Default | Extra |
@@ -128,18 +129,13 @@ async def fetch_one(
     if id is None and md5 is None and filename is None:
         raise ValueError("Must provide at least one parameter.")
 
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM maps
-         WHERE id = COALESCE(:id, id)
-           AND md5 = COALESCE(:md5, md5)
-           AND filename = COALESCE(:filename, filename)
-    """
-    params = {
+    filter = {
         "id": id,
         "md5": md5,
         "filename": filename,
     }
+    
+    query, params = build_select_query(f"SELECT {READ_PARAMS} FROM maps", filter)
     rec = await app.state.services.database.fetch_one(query, params)
     return dict(rec) if rec is not None else None
 
@@ -155,20 +151,8 @@ async def fetch_count(
     frozen: Optional[bool] = None,
 ) -> int:
     """Fetch the number of maps in the database."""
-    query = """\
-        SELECT COUNT(*) AS count
-          FROM maps
-        WHERE server = COALESCE(:server, server)
-          AND set_id = COALESCE(:set_id, set_id)
-          AND status = COALESCE(:status, status)
-          AND artist = COALESCE(:artist, artist)
-          AND creator = COALESCE(:creator, creator)
-          AND filename = COALESCE(:filename, filename)
-          AND mode = COALESCE(:mode, mode)
-          AND frozen = COALESCE(:frozen, frozen)
-
-    """
-    params = {
+    
+    filter = {
         "server": server,
         "set_id": set_id,
         "status": status,
@@ -178,6 +162,8 @@ async def fetch_count(
         "mode": mode,
         "frozen": frozen,
     }
+    
+    query, params = build_select_query(f"SELECT COUNT(*) AS count FROM maps", filter)
     rec = await app.state.services.database.fetch_one(query, params)
     assert rec is not None
     return rec["count"]
@@ -196,19 +182,8 @@ async def fetch_many(
     page_size: Optional[int] = None,
 ) -> list[dict[str, Any]]:
     """Fetch a list of maps from the database."""
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM maps
-         WHERE server = COALESCE(:server, server)
-           AND set_id = COALESCE(:set_id, set_id)
-           AND status = COALESCE(:status, status)
-           AND artist = COALESCE(:artist, artist)
-           AND creator = COALESCE(:creator, creator)
-           AND filename = COALESCE(:filename, filename)
-           AND mode = COALESCE(:mode, mode)
-           AND frozen = COALESCE(:frozen, frozen)
-    """
-    params = {
+    
+    filter = {
         "server": server,
         "set_id": set_id,
         "status": status,
@@ -218,6 +193,8 @@ async def fetch_many(
         "mode": mode,
         "frozen": frozen,
     }
+    
+    query, params = build_select_query(f"SELECT {READ_PARAMS} FROM maps", filter)
 
     if page is not None and page_size is not None:
         query += """\
@@ -257,34 +234,8 @@ async def update(
     diff: Optional[float] = None,
 ) -> Optional[dict[str, Any]]:
     """Update a beatmap entry in the database."""
-    query = """\
-        UPDATE maps
-           SET server = COALESCE(:server, server),
-               set_id = COALESCE(:set_id, set_id),
-               status = COALESCE(:status, status),
-               md5 = COALESCE(:md5, md5),
-               artist = COALESCE(:artist, artist),
-               title = COALESCE(:title, title),
-               version = COALESCE(:version, version),
-               creator = COALESCE(:creator, creator),
-               filename = COALESCE(:filename, filename),
-               last_update = COALESCE(:last_update, last_update),
-               total_length = COALESCE(:total_length, total_length),
-               max_combo = COALESCE(:max_combo, max_combo),
-               frozen = COALESCE(:frozen, frozen),
-               plays = COALESCE(:plays, plays),
-               passes = COALESCE(:passes, passes),
-               mode = COALESCE(:mode, mode),
-               bpm = COALESCE(:bpm, bpm),
-               cs = COALESCE(:cs, cs),
-               ar = COALESCE(:ar, ar),
-               od = COALESCE(:od, od),
-               hp = COALESCE(:hp, hp),
-               diff = COALESCE(:diff, diff)
-         WHERE id = :id
-    """
-    params = {
-        "id": id,
+    
+    values = {
         "server": server,
         "set_id": set_id,
         "status": status,
@@ -308,6 +259,9 @@ async def update(
         "hp": hp,
         "diff": diff,
     }
+    
+    query, params = build_update_query("UPDATE maps", values, {"id": id})
+    
     await app.state.services.database.execute(query, params)
 
     query = f"""\

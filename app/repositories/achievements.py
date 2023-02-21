@@ -5,6 +5,7 @@ from typing import Any
 from typing import Optional
 
 import app.state.services
+from app.utils import build_select_query, build_update_query
 
 # +-------+--------------+------+-----+---------+----------------+
 # | Field | Type         | Null | Key | Default | Extra          |
@@ -63,17 +64,14 @@ async def fetch_one(
     """Fetch a single achievement."""
     if id is None and name is None:
         raise ValueError("Must provide at least one parameter.")
-
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM achievements
-         WHERE id = COALESCE(:id, id)
-            OR name = COALESCE(:name, name)
-    """
-    params = {
-        "id": id,
-        "name": name,
-    }
+    
+    if (name is not None):
+        query = f"SELECT {READ_PARAMS} FROM achievements WHERE name = :name"
+        params = {"name": name}
+    
+    if (id is not None):
+        query = f"SELECT {READ_PARAMS} FROM achievements WHERE id = :id"
+        params = {"id": id}
 
     rec = await app.state.services.database.fetch_one(query, params)
     return dict(rec) if rec is not None else None
@@ -123,21 +121,15 @@ async def update(
     cond: Optional[str] = None,
 ) -> Optional[dict[str, Any]]:
     """Update an existing achievement."""
-    query = """\
-        UPDATE achievements
-           SET file = COALESCE(:file, file),
-               name = COALESCE(:name, name),
-               desc = COALESCE(:desc, desc),
-               cond = COALESCE(:cond, cond)
-         WHERE id = :id
-    """
-    params = {
-        "id": id,
+    
+    values = {
         "file": file,
         "name": name,
         "desc": desc,
         "cond": cond,
     }
+    
+    query, params = build_update_query("UPDATE achievements", values, {"id": id})
     await app.state.services.database.execute(query, params)
 
     query = f"""\

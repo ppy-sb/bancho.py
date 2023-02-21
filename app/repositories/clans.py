@@ -5,6 +5,7 @@ from typing import Any
 from typing import Optional
 
 import app.state.services
+from app.utils import build_select_query
 
 # +------------+-------------+------+-----+---------+----------------+
 # | Field      | Type        | Null | Key | Default | Extra          |
@@ -63,15 +64,8 @@ async def fetch_one(
     if id is None and name is None and tag is None and owner is None:
         raise ValueError("Must provide at least one parameter.")
 
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM clans
-         WHERE id = COALESCE(:id, id)
-           AND name = COALESCE(:name, name)
-           AND tag = COALESCE(:tag, tag)
-           AND owner = COALESCE(:owner, owner)
-    """
-    params = {"id": id, "name": name, "tag": tag, "owner": owner}
+    filter = {"id": id, "name": name, "tag": tag, "owner": owner}
+    query, params = build_select_query(f"SELECT {READ_PARAMS} FROM clans", filter)
     rec = await app.state.services.database.fetch_one(query, params)
     return dict(rec) if rec is not None else None
 

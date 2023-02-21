@@ -1313,7 +1313,7 @@ async def get_leaderboard_scores(
         "s.max_combo, s.n50, s.n100, s.n300, "
         "s.nmiss, s.nkatu, s.ngeki, s.perfect, s.mods, "
         "UNIX_TIMESTAMP(s.play_time) time, u.id userid, "
-        "COALESCE(CONCAT('[', c.tag, '] ', u.name), u.name) AS name "
+        "u.name AS name "
         "FROM scores s "
         "INNER JOIN users u ON u.id = s.userid "
         "LEFT JOIN clans c ON c.id = u.clan_id "

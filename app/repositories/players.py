@@ -5,7 +5,7 @@ from typing import Any
 from typing import Optional
 
 import app.state.services
-from app.utils import make_safe_name
+from app.utils import build_select_query, build_update_query, make_safe_name
 
 # +-------------------+---------------+------+-----+---------+----------------+
 # | Field             | Type          | Null | Key | Default | Extra          |
@@ -83,18 +83,13 @@ async def fetch_one(
     if id is None and name is None and email is None:
         raise ValueError("Must provide at least one parameter.")
 
-    query = f"""\
-        SELECT {'*' if fetch_all_fields else READ_PARAMS}
-          FROM users
-         WHERE id = COALESCE(:id, id)
-           AND safe_name = COALESCE(:safe_name, safe_name)
-           AND email = COALESCE(:email, email)
-    """
-    params = {
+    filter = {
         "id": id,
         "safe_name": make_safe_name(name) if name is not None else None,
         "email": email,
     }
+    
+    query, params = build_select_query(f"SELECT {'*' if fetch_all_fields else READ_PARAMS} FROM users", filter)
     rec = await app.state.services.database.fetch_one(query, params)
     return dict(rec) if rec is not None else None
 
@@ -108,17 +103,8 @@ async def fetch_count(
     play_style: Optional[int] = None,
 ) -> int:
     """Fetch the number of players in the database."""
-    query = """\
-        SELECT COUNT(*) AS count
-          FROM users
-         WHERE priv = COALESCE(:priv, priv)
-           AND country = COALESCE(:country, country)
-           AND clan_id = COALESCE(:clan_id, clan_id)
-           AND clan_priv = COALESCE(:clan_priv, clan_priv)
-           AND preferred_mode = COALESCE(:preferred_mode, preferred_mode)
-           AND play_style = COALESCE(:play_style, play_style)
-    """
-    params = {
+    
+    filter = {
         "priv": priv,
         "country": country,
         "clan_id": clan_id,
@@ -126,6 +112,8 @@ async def fetch_count(
         "preferred_mode": preferred_mode,
         "play_style": play_style,
     }
+    
+    query, params = build_select_query(f"SELECT COUNT(*) AS count FROM users", filter)
     rec = await app.state.services.database.fetch_one(query, params)
     assert rec is not None
     return rec["count"]
@@ -142,17 +130,8 @@ async def fetch_many(
     page_size: Optional[int] = None,
 ) -> list[dict[str, Any]]:
     """Fetch multiple players from the database."""
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM users
-         WHERE priv = COALESCE(:priv, priv)
-           AND country = COALESCE(:country, country)
-           AND clan_id = COALESCE(:clan_id, clan_id)
-           AND clan_priv = COALESCE(:clan_priv, clan_priv)
-           AND preferred_mode = COALESCE(:preferred_mode, preferred_mode)
-           AND play_style = COALESCE(:play_style, play_style)
-    """
-    params = {
+    
+    filter = {
         "priv": priv,
         "country": country,
         "clan_id": clan_id,
@@ -160,6 +139,8 @@ async def fetch_many(
         "preferred_mode": preferred_mode,
         "play_style": play_style,
     }
+    
+    query, params = build_select_query(f"SELECT {READ_PARAMS} FROM users", filter)
 
     if page is not None and page_size is not None:
         query += """\
@@ -193,29 +174,8 @@ async def update(
     api_key: Optional[str] = None,
 ) -> Optional[dict[str, Any]]:
     """Update a player in the database."""
-    query = """\
-        UPDATE users
-           SET name = COALESCE(:name, name),
-               safe_name = COALESCE(:safe_name, safe_name),
-               email = COALESCE(:email, email),
-               priv = COALESCE(:priv, priv),
-               country = COALESCE(:country, country),
-               silence_end = COALESCE(:silence_end, silence_end),
-               donor_end = COALESCE(:donor_end, donor_end),
-               creation_time = COALESCE(:creation_time, creation_time),
-               latest_activity = COALESCE(:latest_activity, latest_activity),
-               clan_id = COALESCE(:clan_id, clan_id),
-               clan_priv = COALESCE(:clan_priv, clan_priv),
-               preferred_mode = COALESCE(:preferred_mode, preferred_mode),
-               play_style = COALESCE(:play_style, play_style),
-               custom_badge_name = COALESCE(:custom_badge_name, custom_badge_name),
-               custom_badge_icon = COALESCE(:custom_badge_icon, custom_badge_icon),
-               userpage_content = COALESCE(:userpage_content, userpage_content),
-               api_key = COALESCE(:api_key, api_key)
-         WHERE id = :id
-    """
-    params = {
-        "id": id,
+    
+    values = {
         "name": name,
         "safe_name": make_safe_name(name) if name is not None else None,
         "email": email,
@@ -234,6 +194,9 @@ async def update(
         "userpage_content": userpage_content,
         "api_key": api_key,
     }
+    
+    query, params = build_update_query("UPDATE users", values, {"id": id})
+    
     await app.state.services.database.execute(query, params)
 
     query = f"""\
