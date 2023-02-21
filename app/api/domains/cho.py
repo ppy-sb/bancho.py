@@ -20,7 +20,6 @@ from fastapi import Response
 from fastapi.param_functions import Header
 from fastapi.requests import Request
 from fastapi.responses import HTMLResponse
-from ppysb_pp_py import ScoreParams
 
 import app.packets
 import app.settings

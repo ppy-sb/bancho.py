@@ -9,8 +9,6 @@ from pathlib import Path
 from typing import Optional
 from typing import TYPE_CHECKING
 
-from ppysb_pp_py import ScoreParams
-
 import app.state
 import app.utils
 import app.usecases.performance

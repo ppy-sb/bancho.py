@@ -33,7 +33,6 @@ from typing import Union
 
 import psutil
 import timeago
-from ppysb_pp_py import ScoreParams
 from pytimeparse.timeparse import timeparse
 
 import app.logging
