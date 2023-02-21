@@ -481,7 +481,6 @@ def build_select_query(sentence: str, filter: dict[str, Any]):
             base += f"""AND {key} = :{key} """
         else:
             params.pop(key)
-    print(base.strip(), params)
     return base.strip(), params
 
 
@@ -493,5 +492,4 @@ def build_update_query(sentence: str, values: dict[str, Any], filter: dict[str, 
         if value is not None:
             base += f"""{key} = :{key}, """
             params[key] = value
-    print(build_select_query(base.strip(', '), filter)[0], params)
     return build_select_query(base.strip(', '), filter)[0], params
