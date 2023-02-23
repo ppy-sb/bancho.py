@@ -40,7 +40,7 @@ BEATMAPS_PATH = Path.cwd() / ".data/osu"
 PP_VERSION_TO = 2
 SCORES_EACH_TIME = 100
 COUNTER = 0
-DO_UPDATE = False
+DO_UPDATE = True
 
 
 @dataclass
@@ -86,7 +86,7 @@ async def recalculate_score(
         else:
             print(f"Recalculated score ID {score['id']} ({score['pp']:.3f}pp -> {new_pp:.3f}pp)")
     except:
-        print("Score " + score["id"] +" skipped.")
+        print("Score " + str(score["id"]) +" skipped.")
         return
 
 
