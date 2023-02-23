@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.9
 from __future__ import annotations
 
+from memory_profiler import profile
 import argparse
 import asyncio
 import math
@@ -61,10 +62,7 @@ async def recalculate_score(
     ctx: Context,
 ) -> None:
     try:
-        beatmap = ctx.beatmaps.get(score["map_id"])
-        if beatmap is None:
-            beatmap = Beatmap(path=str(beatmap_path))
-            ctx.beatmaps[score["map_id"]] = beatmap
+        beatmap = Beatmap(path=str(beatmap_path))
 
         calculator = Calculator(
             mode=GameMode(score["mode"]).as_vanilla,
@@ -97,9 +95,10 @@ async def process_score_chunk(
     tasks: list[Awaitable[None]] = []
     for score in chunk:
         beatmap_path = BEATMAPS_PATH / f"{score['map_id']}.osu"
-        await ensure_local_osu_file(beatmap_path, score["map_id"], score["map_md5"])
+        await asyncio.sleep(0.01)
+        #await ensure_local_osu_file(beatmap_path, score["map_id"], score["map_md5"])
 
-        tasks.append(recalculate_score(score, beatmap_path, ctx))
+        #tasks.append(recalculate_score(score, beatmap_path, ctx))
 
     await asyncio.gather(*tasks)
     print(f"Score chunk {COUNTER} processed.")
@@ -181,7 +180,7 @@ async def recalculate_mode_users(mode: GameMode, ctx: Context) -> None:
     for id_chunk in divide_chunks(user_ids, 100):
         await process_user_chunk(id_chunk, mode, ctx)
 
-
+@profile
 async def recalculate_mode_scores(mode: GameMode, ctx: Context) -> None:
     global COUNTER
     COUNTER = 0
@@ -198,6 +197,7 @@ async def recalculate_mode_scores(mode: GameMode, ctx: Context) -> None:
         if len(scores) == 0:
             break
         await process_score_chunk(scores, ctx)
+
 
 async def main(argv: Optional[Sequence[str]] = None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
