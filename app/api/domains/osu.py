@@ -939,7 +939,7 @@ async def osuSubmitModularSelector(
         ":n50, :nmiss, :ngeki, :nkatu, "
         ":grade, :status, :mode, :play_time, "
         ":time_elapsed, :client_flags, :user_id, :perfect, "
-        ":checksum)",
+        ":checksum, :pp_version)",
         {
             "map_md5": score.bmap.md5,
             "score": score.score,
@@ -962,6 +962,7 @@ async def osuSubmitModularSelector(
             "user_id": score.player.id,
             "perfect": score.perfect,
             "checksum": score.client_checksum,
+            "pp_version": 2
         },
     )
 
