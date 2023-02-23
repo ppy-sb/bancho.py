@@ -1,7 +1,6 @@
 #!/usr/bin/env python3.9
 from __future__ import annotations
 
-from memory_profiler import profile
 import argparse
 import asyncio
 import math
@@ -39,9 +38,7 @@ except ModuleNotFoundError:
 DEBUG = False
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
 PP_VERSION_TO = 2
-SCORES_EACH_TIME = 100
 COUNTER = 0
-DO_UPDATE = True
 
 
 @dataclass
@@ -76,15 +73,17 @@ async def recalculate_score(
         if math.isnan(new_pp) or math.isinf(new_pp):
             new_pp = 0.0
         new_pp = min(new_pp, 9999.999)
-        if DO_UPDATE:
-            await ctx.database.execute(
-                "UPDATE scores SET pp = :new_pp, pp_version = :pp_version WHERE id = :id",
-                {"new_pp": new_pp, "id": score["id"], "pp_version": PP_VERSION_TO},
+        await ctx.database.execute(
+            "UPDATE scores SET pp = :new_pp, pp_version = :pp_version WHERE id = :id",
+            {"new_pp": new_pp, "id": score["id"], "pp_version": PP_VERSION_TO},
+        )
+
+        if DEBUG:
+            print(
+                f"Recalculated score ID {score['id']} ({score['pp']:.3f}pp -> {new_pp:.3f}pp)",
             )
-        else:
-            print(f"Recalculated score ID {score['id']} ({score['pp']:.3f}pp -> {new_pp:.3f}pp)")
     except:
-        print("Score " + str(score["id"]) +" skipped.")
+        print("Calculation issue occurred, do nothing")
         return
 
 
@@ -95,10 +94,9 @@ async def process_score_chunk(
     tasks: list[Awaitable[None]] = []
     for score in chunk:
         beatmap_path = BEATMAPS_PATH / f"{score['map_id']}.osu"
-        await asyncio.sleep(0.01)
-        #await ensure_local_osu_file(beatmap_path, score["map_id"], score["map_md5"])
+        await ensure_local_osu_file(beatmap_path, score["map_id"], score["map_md5"])
 
-        #tasks.append(recalculate_score(score, beatmap_path, ctx))
+        tasks.append(recalculate_score(score, beatmap_path, ctx))
 
     await asyncio.gather(*tasks)
     print(f"Score chunk {COUNTER} processed.")
@@ -180,23 +178,23 @@ async def recalculate_mode_users(mode: GameMode, ctx: Context) -> None:
     for id_chunk in divide_chunks(user_ids, 100):
         await process_user_chunk(id_chunk, mode, ctx)
 
-@profile
+
 async def recalculate_mode_scores(mode: GameMode, ctx: Context) -> None:
     global COUNTER
     COUNTER = 0
-    while (True):
+    
+    scores = [
+        dict(row)
+        for row in await ctx.database.fetch_all(
+            "SELECT scores.id, scores.mode, scores.mods, scores.acc, nmiss, scores.max_combo, scores.map_md5, scores.pp, maps.id as map_id FROM scores INNER JOIN maps ON scores.map_md5 = maps.md5 "
+            "WHERE scores.status = 2 AND scores.mode = :mode AND pp_version < :pp_version ORDER BY scores.pp DESC",
+            {"mode": mode, "pp_version": PP_VERSION_TO},
+        )
+    ]
+
+    for score_chunk in divide_chunks(scores, 1000):
         COUNTER += 1
-        scores = [
-            dict(row)
-            for row in await ctx.database.fetch_all(
-                "SELECT scores.id, scores.mode, scores.mods, scores.acc, nmiss, scores.max_combo, scores.map_md5, scores.pp, maps.id as map_id FROM scores INNER JOIN maps ON scores.map_md5 = maps.md5 "
-                "WHERE scores.status = 2 AND scores.mode = :mode and pp_version < :pp_version LIMIT :limit",
-                {"mode": mode, "pp_version": PP_VERSION_TO, "limit": SCORES_EACH_TIME},
-            )
-        ]
-        if len(scores) == 0:
-            break
-        await process_score_chunk(scores, ctx)
+        await process_score_chunk(score_chunk, ctx)
 
 
 async def main(argv: Optional[Sequence[str]] = None) -> int:
