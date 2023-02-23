@@ -158,8 +158,7 @@ async def recalculate_user(
             {str(id): pp},
         )
 
-    if DEBUG:
-        print(f"Recalculated user ID {id} ({pp:.3f}pp, {acc:.3f}%)")
+    print(f"Recalculated user ID {id} ({pp:.3f}pp, {acc:.3f}%)")
 
 
 async def process_user_chunk(
@@ -230,8 +229,6 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
     redis = await aioredis.from_url(app.settings.REDIS_DSN)
 
     ctx = Context(db, redis)
-    
-    print(len(args.mode))
 
     for mode in args.mode:
         mode = GameMode(int(mode))
