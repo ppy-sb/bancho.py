@@ -111,26 +111,27 @@ async def recalculate_user(
         "SELECT s.pp, s.acc FROM scores s "
         "INNER JOIN maps m ON s.map_md5 = m.md5 "
         "WHERE s.userid = :user_id AND s.mode = :mode "
-        "AND s.status = 2 AND m.status IN (2, 3) "  # ranked, approved
+        "AND s.status = 2 AND m.status = 2 "  # ranked
         "ORDER BY s.pp DESC",
         {"user_id": id, "mode": game_mode},
     )
 
     total_scores = len(best_scores)
-    if not total_scores:
-        return
+    if total_scores:
+        top_100_pp = best_scores[:100]
 
-    top_100_pp = best_scores[:100]
+        # calculate new total weighted accuracy
+        weighted_acc = sum(row["acc"] * 0.95**i for i, row in enumerate(top_100_pp))
+        bonus_acc = 100.0 / (20 * (1 - 0.95**total_scores))
+        acc = (weighted_acc * bonus_acc) / 100
 
-    # calculate new total weighted accuracy
-    weighted_acc = sum(row["acc"] * 0.95**i for i, row in enumerate(top_100_pp))
-    bonus_acc = 100.0 / (20 * (1 - 0.95**total_scores))
-    acc = (weighted_acc * bonus_acc) / 100
-
-    # calculate new total weighted pp
-    weighted_pp = sum(row["pp"] * 0.95**i for i, row in enumerate(top_100_pp))
-    bonus_pp = 416.6667 * (1 - 0.9994**total_scores)
-    pp = round(weighted_pp + bonus_pp)
+        # calculate new total weighted pp
+        weighted_pp = sum(row["pp"] * 0.95**i for i, row in enumerate(top_100_pp))
+        bonus_pp = 416.6667 * (1 - 0.9994**total_scores)
+        pp = round(weighted_pp + bonus_pp)
+    else:
+        pp = 0
+        acc = 100
 
     await ctx.database.execute(
         "UPDATE stats SET pp = :pp, acc = :acc WHERE id = :id AND mode = :mode",
@@ -153,6 +154,16 @@ async def recalculate_user(
         await ctx.redis.zadd(
             f"bancho:leaderboard:{game_mode.value}:{user_info['country']}",
             {str(id): pp},
+        )
+    else:
+        await ctx.redis.zrem(
+            f"bancho:leaderboard:{game_mode.value}",
+            {str(id)},
+        )
+
+        await ctx.redis.zrem(
+            f"bancho:leaderboard:{game_mode.value}:{user_info['country']}",
+            {str(id)},
         )
 
     print(f"Recalculated user ID {id} ({pp:.3f}pp, {acc:.3f}%)")
@@ -231,7 +242,7 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
     for mode in args.mode:
         mode = GameMode(int(mode))
 
-        await recalculate_mode_scores(mode, ctx)
+        #await recalculate_mode_scores(mode, ctx)
         await recalculate_mode_users(mode, ctx)
 
     await app.state.services.http_client.close()
