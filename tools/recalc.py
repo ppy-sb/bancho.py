@@ -37,7 +37,7 @@ except ModuleNotFoundError:
 
 DEBUG = False
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
-PP_VERSION_TO = 2
+PP_VERSION_TO = 3
 COUNTER = 0
 
 
@@ -64,10 +64,16 @@ async def recalculate_score(
         calculator = Calculator(
             mode=GameMode(score["mode"]).as_vanilla,
             mods=score["mods"],
-            acc=score["acc"],
-            n_misses=score["nmiss"],
             combo=score["max_combo"],
+            acc=score["acc"],
+            n300=score["n300"],
+            n100=score["n100"],
+            n50=score["n50"],
+            n_geki=score["ngeki"],
+            n_katu=score["nkatu"],
+            n_misses=score["nmiss"],
         )
+
         attrs = calculator.performance(beatmap)
         new_pp: float = attrs.pp  # type: ignore
         if math.isnan(new_pp) or math.isinf(new_pp):

@@ -962,7 +962,7 @@ async def osuSubmitModularSelector(
             "user_id": score.player.id,
             "perfect": score.perfect,
             "checksum": score.client_checksum,
-            "pp_version": 2
+            "pp_version": 3
         },
     )
 
