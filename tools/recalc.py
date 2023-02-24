@@ -158,12 +158,12 @@ async def recalculate_user(
     else:
         await ctx.redis.zrem(
             f"bancho:leaderboard:{game_mode.value}",
-            {str(id)},
+            str(id),
         )
 
         await ctx.redis.zrem(
             f"bancho:leaderboard:{game_mode.value}:{user_info['country']}",
-            {str(id)},
+            str(id),
         )
 
     print(f"Recalculated user ID {id} ({pp:.3f}pp, {acc:.3f}%)")
