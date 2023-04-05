@@ -192,6 +192,11 @@ async def fetch_geoloc_web(ip: IPAddress) -> Optional[Geolocation]:
 async def log_strange_occurrence(obj: object) -> None:
     pass  # Why do we hope to keep these rubbish unreadable text
 
+
+async def log_strange_occurrence_real(obj: object) -> None:
+    pickled_obj: bytes = pickle.dumps(obj)
+    uploaded = False
+
     if app.settings.AUTOMATICALLY_REPORT_PROBLEMS:
         # automatically reporting problems to cmyui's server
         async with http_client.post(
