@@ -248,7 +248,7 @@ async def main(argv: Optional[Sequence[str]] = None) -> int:
     for mode in args.mode:
         mode = GameMode(int(mode))
 
-        await recalculate_mode_scores(mode, ctx)
+        #await recalculate_mode_scores(mode, ctx)
         await recalculate_mode_users(mode, ctx)
 
     await app.state.services.http_client.close()
