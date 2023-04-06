@@ -108,9 +108,7 @@ async def bancho_http_handler():
 async def bancho_list_user():
     """see who's online"""
 
-    user_id_max_length = len(
-        str(max(map(lambda p: p.id, app.state.sessions.players)))
-    )
+    user_id_max_length = len(str(max(map(lambda p: p.id, app.state.sessions.players))))
 
     return HTMLResponse(
         f"""
