@@ -82,48 +82,40 @@ router = APIRouter(tags=["Bancho API"])
 @router.get("/")
 async def bancho_http_handler():
     """Handle a request from a web browser."""
-    packets = app.state.packets["all"]
+    new_line = "\n"
 
+    packets = app.state.packets["all"]
     return HTMLResponse(
-        f"""<!DOCTYPE html>
-        <body style="font-family: monospace;">
-        {"<br>".join(
-            (
-                f"Running bancho.py v{app.settings.VERSION}",
-                f"Players online: {len(app.state.sessions.players) - 1}",
-                '<a href="https://github.com/osuAkatsuki/bancho.py">Source code</a>',
-                "",
-                f"<b>packets handled ({len(packets)})</b>",
-                "",
-            ),
-        )}
-        {"<br>".join([f"{packet.name} ({packet.value})" for packet in packets])}
-        </body>
-        </html>
-        """
+        f"""
+<!DOCTYPE html>
+<body style="font-family: monospace; white-space: pre-wrap;">Running bancho.py v{app.settings.VERSION}
+Players online: {len(app.state.sessions.players) - 1}
+<a href="https://github.com/osuAkatsuki/bancho.py">Source code</a>
+<b>packets handled ({len(packets)})</b>
+{new_line.join([f"{packet.name} ({packet.value})" for packet in packets])}
+</body>
+</html>"""
     )
 
 
 @router.get("/online")
 async def bancho_list_user():
     """see who's online"""
-
+    new_line = "\n"
     user_id_max_length = len(str(max(map(lambda p: p.id, app.state.sessions.players))))
 
     return HTMLResponse(
         f"""
-        <!DOCTYPE html>
-        <body style="font-family: monospace;">
-        online users: <br>
-        {"<br>".join(
-            map(
-                lambda p: f"({str(p.id).rjust(user_id_max_length)}): {p.safe_name}",
-                app.state.sessions.players,
-            ),
-        )}
-        </body>
-        </html>
-        """
+<!DOCTYPE html>
+<body style="font-family: monospace;  white-space: pre-wrap;">online users:
+{new_line.join(
+    map(
+        lambda p: f"({str(p.id).rjust(user_id_max_length)}): {p.safe_name}",
+        app.state.sessions.players,
+    ),
+)}
+</body>
+</html>"""
     )
 
 
