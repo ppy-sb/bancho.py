@@ -86,6 +86,7 @@ async def bancho_http_handler():
     matches = list(
         filter(lambda match: isinstance(match, Match), app.state.sessions.matches)
     )
+    players = list(filter(lambda p: not p.bot_client, app.state.sessions.players))
 
     packets = app.state.packets["all"]
     return HTMLResponse(
@@ -93,7 +94,7 @@ async def bancho_http_handler():
 <!DOCTYPE html>
 <body style="font-family: monospace; white-space: pre-wrap;">Running bancho.py v{app.settings.VERSION}
 
-<a href="online">{len(app.state.sessions.players) - 1} online players</a>
+<a href="online">{len(players)} online players</a>
 <a href="matches">{len(matches)} matches</a>
 
 <b>packets handled ({len(packets)})</b>
@@ -109,17 +110,26 @@ async def bancho_http_handler():
 async def bancho_list_user():
     """see who's online"""
     new_line = "\n"
-    user_id_max_length = len(str(max(p.id for p in app.state.sessions.players)))
+    players = list(filter(lambda p: not p.bot_client, app.state.sessions.players))
+    bots = list(filter(lambda p: p.bot_client, app.state.sessions.players))
+    id_max_length = len(str(max(p.id for p in app.state.sessions.players)))
 
     return HTMLResponse(
         f"""
 <!DOCTYPE html>
 <body style="font-family: monospace;  white-space: pre-wrap;"><a href="/">back</a>
-online users:
+users:
 {new_line.join(
     map(
-        lambda p: f"({str(p.id).rjust(user_id_max_length)}): {p.safe_name}",
-        app.state.sessions.players,
+        lambda p: f"({str(p.id).rjust(id_max_length)}): {p.safe_name}",
+        players,
+    ),
+)}
+bots:
+{new_line.join(
+    map(
+        lambda p: f"({str(p.id).rjust(id_max_length)}): {p.safe_name}",
+        bots,
     ),
 )}
 </body>
