@@ -83,17 +83,23 @@ router = APIRouter(tags=["Bancho API"])
 async def bancho_http_handler():
     """Handle a request from a web browser."""
     new_line = "\n"
+    matches = list(
+        filter(lambda match: isinstance(match, Match), app.state.sessions.matches)
+    )
 
     packets = app.state.packets["all"]
     return HTMLResponse(
         f"""
 <!DOCTYPE html>
 <body style="font-family: monospace; white-space: pre-wrap;">Running bancho.py v{app.settings.VERSION}
-<a href="online">Players online: {len(app.state.sessions.players) - 1}</a>
-<a href="matches">Ongoing matches: {len(app.state.sessions.matches)}</a>
-<a href="https://github.com/osuAkatsuki/bancho.py">Source code</a>
+
+<a href="online">{len(app.state.sessions.players) - 1} online players</a>
+<a href="matches">{len(matches)} matches</a>
+
 <b>packets handled ({len(packets)})</b>
 {new_line.join([f"{packet.name} ({packet.value})" for packet in packets])}
+
+<a href="https://github.com/osuAkatsuki/bancho.py">Source code</a>
 </body>
 </html>"""
     )
@@ -103,7 +109,7 @@ async def bancho_http_handler():
 async def bancho_list_user():
     """see who's online"""
     new_line = "\n"
-    user_id_max_length = len(str(max(map(lambda p: p.id, app.state.sessions.players))))
+    user_id_max_length = len(str(max(p.id for p in app.state.sessions.players)))
 
     return HTMLResponse(
         f"""
@@ -128,20 +134,35 @@ async def bancho_list_user():
 
     ON_GOING = "ongoing"
     IDLE = "idle"
-    status_length = len(max(ON_GOING, IDLE))
+    max_status_length = len(max(ON_GOING, IDLE))
 
-    match_id_max_length = len(
-        str(max(map(lambda match: match, id, app.state.sessions.matches)))
+    BEATMAP = "beatmap"
+    HOST = "host"
+    max_properties_length = len(max(BEATMAP, HOST))
+
+    matches = list(
+        filter(lambda match: isinstance(match, Match), app.state.sessions.matches)
+    )
+
+    match_id_max_length = (
+        len(str(max(match.id for match in matches))) if len(matches) else 0
     )
 
     return HTMLResponse(
         f"""
 <!DOCTYPE html>
 <body style="font-family: monospace;  white-space: pre-wrap;"><a href="/">back</a>
-ongoing matches:
+matches:
 {new_line.join(map(
-    lambda m: f"{(ON_GOING if m.in_progress else IDLE).rjust(status_length)} ({str(m.id).rjust(match_id_max_length)}): {m.name}",
-    app.state.sessions.matches,
+    lambda m: 
+      f'''{(ON_GOING if m.in_progress else IDLE).ljust(max_status_length)} ({str(m.id).rjust(match_id_max_length)}): {m.name}
+-- '''
+      + f"{new_line}-- ".join([
+            f'{BEATMAP.rjust(max_properties_length)}: {m.map_name}',
+            f'{HOST.rjust(max_properties_length)}: <{m.host.id}> {m.host.safe_name}'
+        ])
+    ,
+    matches,
 ))}
 </body>
 </html>"""
