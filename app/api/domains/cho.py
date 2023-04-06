@@ -94,9 +94,10 @@ async def bancho_http_handler():
                 '<a href="https://github.com/osuAkatsuki/bancho.py">Source code</a>',
                 "",
                 f"<b>packets handled ({len(packets)})</b>",
-                "<br>".join([f"{packet.name} ({packet.value})" for packet in packets]),
+                "",
             ),
         ).encode(),
+        +"<br>".join([f"{packet.name} ({packet.value})" for packet in packets]),
         +"</body>",
         +"</html>",
     )
