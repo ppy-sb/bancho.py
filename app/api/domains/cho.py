@@ -89,7 +89,8 @@ async def bancho_http_handler():
         f"""
 <!DOCTYPE html>
 <body style="font-family: monospace; white-space: pre-wrap;">Running bancho.py v{app.settings.VERSION}
-Players online: {len(app.state.sessions.players) - 1}
+<a href="online">Players online: {len(app.state.sessions.players) - 1}</a>
+<a href="matches">Ongoing matches: {len(app.state.sessions.matches)}</a>
 <a href="https://github.com/osuAkatsuki/bancho.py">Source code</a>
 <b>packets handled ({len(packets)})</b>
 {new_line.join([f"{packet.name} ({packet.value})" for packet in packets])}
@@ -107,13 +108,41 @@ async def bancho_list_user():
     return HTMLResponse(
         f"""
 <!DOCTYPE html>
-<body style="font-family: monospace;  white-space: pre-wrap;">online users:
+<body style="font-family: monospace;  white-space: pre-wrap;"><a href="/">back</a>
+online users:
 {new_line.join(
     map(
         lambda p: f"({str(p.id).rjust(user_id_max_length)}): {p.safe_name}",
         app.state.sessions.players,
     ),
 )}
+</body>
+</html>"""
+    )
+
+
+@router.get("/matches")
+async def bancho_list_user():
+    """ongoing matches"""
+    new_line = "\n"
+
+    ON_GOING = "ongoing"
+    IDLE = "idle"
+    status_length = len(max(ON_GOING, IDLE))
+
+    match_id_max_length = len(
+        str(max(map(lambda match: match, id, app.state.sessions.matches)))
+    )
+
+    return HTMLResponse(
+        f"""
+<!DOCTYPE html>
+<body style="font-family: monospace;  white-space: pre-wrap;"><a href="/">back</a>
+ongoing matches:
+{new_line.join(map(
+    lambda m: f"{(ON_GOING if m.in_progress else IDLE).rjust(status_length)} ({str(m.id).rjust(match_id_max_length)}): {m.name}",
+    app.state.sessions.matches,
+))}
 </body>
 </html>"""
     )
