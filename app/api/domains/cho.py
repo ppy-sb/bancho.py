@@ -85,7 +85,8 @@ async def bancho_http_handler():
     packets = app.state.packets["all"]
 
     return HTMLResponse(
-        b"<!DOCTYPE html>"
+        b"<!DOCTYPE html>",
+        '<body style="font-family: monospace;">'
         + "<br>".join(
             (
                 f"Running bancho.py v{app.settings.VERSION}",
@@ -96,6 +97,29 @@ async def bancho_http_handler():
                 "<br>".join([f"{packet.name} ({packet.value})" for packet in packets]),
             ),
         ).encode(),
+        +"</body>",
+        +"</html>",
+    )
+
+
+@router.get("/online")
+async def bancho_list_user():
+    """see who's online"""
+
+    user_id_max_length = len(
+        str(max(map(lambda p: p["id"], app.state.sessions.players)))
+    )
+
+    return HTMLResponse(
+        b'<!DOCTYPE html><body style="font-family: monospace;">'
+        + "<br>".join(
+            map(
+                lambda p: f"({str(p['id']).rjust(user_id_max_length)}): {p['safe_name']}",
+                app.state.sessions.players,
+            ),
+        ).encode(),
+        +"</body>",
+        +"</html>",
     )
 
 
