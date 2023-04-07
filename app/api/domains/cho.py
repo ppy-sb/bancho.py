@@ -83,10 +83,8 @@ router = APIRouter(tags=["Bancho API"])
 async def bancho_http_handler():
     """Handle a request from a web browser."""
     new_line = "\n"
-    matches = list(
-        filter(lambda match: isinstance(match, Match), app.state.sessions.matches)
-    )
-    players = list(filter(lambda p: not p.bot_client, app.state.sessions.players))
+    matches = [m for m in app.state.sessions.matches if m is not None]
+    players = [p for p in app.state.sessions.players if not p.bot_client]
 
     packets = app.state.packets["all"]
     return HTMLResponse(
@@ -102,7 +100,7 @@ async def bancho_http_handler():
 
 <a href="https://github.com/osuAkatsuki/bancho.py">Source code</a>
 </body>
-</html>"""
+</html>""",
     )
 
 
@@ -110,8 +108,10 @@ async def bancho_http_handler():
 async def bancho_list_user():
     """see who's online"""
     new_line = "\n"
-    players = list(filter(lambda p: not p.bot_client, app.state.sessions.players))
-    bots = list(filter(lambda p: p.bot_client, app.state.sessions.players))
+
+    players = [p for p in app.state.sessions.players if not p.bot_client]
+    bots = [bots for bots in app.state.sessions.players if not bots.bot_client]
+
     id_max_length = len(str(max(p.id for p in app.state.sessions.players)))
 
     return HTMLResponse(
@@ -119,21 +119,11 @@ async def bancho_list_user():
 <!DOCTYPE html>
 <body style="font-family: monospace;  white-space: pre-wrap;"><a href="/">back</a>
 users:
-{new_line.join(
-    map(
-        lambda p: f"({str(p.id).rjust(id_max_length)}): {p.safe_name}",
-        players,
-    ),
-)}
+{new_line.join([f"({p.id:>{id_max_length}}): {p.safe_name}" for p in players])}
 bots:
-{new_line.join(
-    map(
-        lambda p: f"({str(p.id).rjust(id_max_length)}): {p.safe_name}",
-        bots,
-    ),
-)}
+{new_line.join(f"({p.id:>{id_max_length}}): {p.safe_name}" for p in bots)}
 </body>
-</html>"""
+</html>""",
     )
 
 
@@ -148,11 +138,9 @@ async def bancho_list_user():
 
     BEATMAP = "beatmap"
     HOST = "host"
-    max_properties_length = len(max(BEATMAP, HOST))
+    max_properties_length = max(len(BEATMAP), len(HOST))
 
-    matches = list(
-        filter(lambda match: isinstance(match, Match), app.state.sessions.matches)
-    )
+    matches = [m for m in app.state.sessions.matches if m is not None]
 
     match_id_max_length = (
         len(str(max(match.id for match in matches))) if len(matches) else 0
@@ -163,19 +151,16 @@ async def bancho_list_user():
 <!DOCTYPE html>
 <body style="font-family: monospace;  white-space: pre-wrap;"><a href="/">back</a>
 matches:
-{new_line.join(map(
-    lambda m: 
-      f'''{(ON_GOING if m.in_progress else IDLE).ljust(max_status_length)} ({str(m.id).rjust(match_id_max_length)}): {m.name}
+{new_line.join(
+    f'''{(ON_GOING if m.in_progress else IDLE):<{max_status_length}} ({m.id:>{match_id_max_length}}): {m.name}
 -- '''
-      + f"{new_line}-- ".join([
-            f'{BEATMAP.rjust(max_properties_length)}: {m.map_name}',
-            f'{HOST.rjust(max_properties_length)}: <{m.host.id}> {m.host.safe_name}'
-        ])
-    ,
-    matches,
-))}
+    + f"{new_line}-- ".join([
+        f'{BEATMAP:<{max_properties_length}}: {m.map_name}',
+        f'{HOST:<{max_properties_length}}: <{m.host.id}> {m.host.safe_name}'
+    ]) for m in matches
+)}
 </body>
-</html>"""
+</html>""",
     )
 
 
