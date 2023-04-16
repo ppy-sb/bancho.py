@@ -91,7 +91,7 @@ async def ensure_local_osu_file(
             return False
         osu_file_path.write_bytes(b_beatmap)
         if (bmap_md5 and bytes_md5 != bytes_md5):
-            return false
+            return False
         return True
 
 
