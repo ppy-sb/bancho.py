@@ -70,7 +70,7 @@ async def ensure_local_osu_file(
     downloading it from the osu!api if required."""
 
     exists = osu_file_path.exists()
-    file_md5 = hashlib.md5(osu_file_path.read_bytes()).hexdigest() if exists else None
+    file_md5 = hashlib.md5(osu_file_path.read_bytes()).hexdigest() if exists else "MAGIC_STRING__NOT_EXISTS"
     if (file_md5 == bmap_md5):
         return True
     # need to get the file from the osu!api
@@ -90,6 +90,8 @@ async def ensure_local_osu_file(
         if (bytes_md5 in KNOWN_BAD_FILES_MD5): 
             return False
         osu_file_path.write_bytes(b_beatmap)
+        if (bmap_md5 and bytes_md5 != bytes_md5):
+            return false
         return True
 
 
