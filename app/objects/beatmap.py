@@ -58,7 +58,9 @@ async def api_get_beatmaps(**params: Any) -> Optional[list[dict[str, Any]]]:
 
     return None
 
-
+KNOWN_BAD_FILES_MD5 = [
+    "d41d8cd98f00b204e9800998ecf8427e" # empty file 
+]
 async def ensure_local_osu_file(
     osu_file_path: Path,
     bmap_id: int,
@@ -66,26 +68,29 @@ async def ensure_local_osu_file(
 ) -> bool:
     """Ensure we have the latest .osu file locally,
     downloading it from the osu!api if required."""
-    if (
-        not osu_file_path.exists()
-        or hashlib.md5(osu_file_path.read_bytes()).hexdigest() != bmap_md5
-    ):
-        # need to get the file from the osu!api
-        if app.settings.DEBUG:
-            log(f"Doing osu!api (.osu file) request {bmap_id}", Ansi.LMAGENTA)
 
-        url = f"https://old.ppy.sh/osu/{bmap_id}"
-        async with app.state.services.http_client.get(url) as resp:
-            if resp.status != 200:
-                if 400 <= resp.status < 500:
-                    # client error, report this to cmyui
-                    stacktrace = app.utils.get_appropriate_stacktrace()
-                    await app.state.services.log_strange_occurrence(stacktrace)
-                return False
+    exists = osu_file_path.exists()
+    file_md5 = hashlib.md5(osu_file_path.read_bytes()).hexdigest() if exists else None
+    if (file_md5 == bmap_md5):
+        return True
+    # need to get the file from the osu!api
+    if app.settings.DEBUG:
+        log(f"Doing osu!api (.osu file) request {bmap_id}", Ansi.LMAGENTA)
 
-            osu_file_path.write_bytes(await resp.read())
-
-    return True
+    url = f"https://old.ppy.sh/osu/{bmap_id}"
+    async with app.state.services.http_client.get(url) as resp:
+        if resp.status != 200:
+            if 400 <= resp.status < 500:
+                # client error, report this to cmyui
+                stacktrace = app.utils.get_appropriate_stacktrace()
+                await app.state.services.log_strange_occurrence(stacktrace)
+            return False
+        b_beatmap = await resp.read()
+        bytes_md5 = hashlib.md5(b_beatmap).hexdigest()
+        if (bytes_md5 in KNOWN_BAD_FILES_MD5): 
+            return False
+        osu_file_path.write_bytes(b_beatmap)
+        return True
 
 
 # for some ungodly reason, different values are used to
