@@ -67,9 +67,13 @@ async def ensure_local_osu_file(
     """Ensure we have the latest .osu file locally,
     downloading it from the osu!api if required."""
 
-    if osu_file_path.exists() is False: return False
     # some callers have type Any | str on "bmap_md5" so I assume it's optional, thus May be None.
-    file_md5 = hashlib.md5(osu_file_path.read_bytes()).hexdigest()
+    # I use a magic string here to avoid letting optional md5 slip through.
+    file_md5 = (
+        hashlib.md5(osu_file_path.read_bytes()).hexdigest()
+        if osu_file_path.exists()
+        else "MAGIC_STRING__NOT_EXISTS"
+    )
     if file_md5 == bmap_md5:
         return True
     # need to get the file from the osu!api
@@ -80,6 +84,9 @@ async def ensure_local_osu_file(
     async with app.state.services.http_client.get(url) as resp:
         if resp.headers.get("Content-Disposition", "").startswith("attachment"):
             # bmap_id is not exists.
+            # consider removing following code as it occurs frequently.
+            stacktrace = app.utils.get_appropriate_stacktrace()
+            await app.state.services.log_strange_occurrence(stacktrace)
             return False
 
         bmap_bytes = await resp.read()
