@@ -76,6 +76,7 @@ async def ensure_local_osu_file(
     )
     if file_md5 == bmap_md5:
         return True
+    
     # need to get the file from the osu!api
     if app.settings.DEBUG:
         log(f"Doing osu!api (.osu file) request {bmap_id}", Ansi.LMAGENTA)
@@ -83,20 +84,14 @@ async def ensure_local_osu_file(
     url = f"https://old.ppy.sh/osu/{bmap_id}"
     async with app.state.services.http_client.get(url) as resp:
         if resp.headers.get("Content-Disposition", "").startswith("attachment"):
-            # bmap_id is not exists.
-            # consider removing following code as it occurs frequently.
-            stacktrace = app.utils.get_appropriate_stacktrace()
-            await app.state.services.log_strange_occurrence(stacktrace)
-            return False
-
-        bmap_bytes = await resp.read()
-        if bmap_bytes.strip():
-            return False
-        bytes_md5 = hashlib.md5(bmap_bytes).hexdigest()
-        osu_file_path.write_bytes(bmap_bytes)
-        if bmap_md5 is not None and bytes_md5 is not bmap_md5:
-            return False
-        return True
+            # beatmap file response
+            bmap_bytes = await resp.read()
+            bytes_md5 = hashlib.md5(bmap_bytes).hexdigest()
+            osu_file_path.write_bytes(bmap_bytes)
+            if bytes_md5 == bmap_md5:
+                # we got the target file
+                return True
+    return False
 
 
 # for some ungodly reason, different values are used to
