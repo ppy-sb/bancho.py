@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable
 from typing import Literal
+from typing import Mapping
 from typing import Optional
 from typing import TypedDict
 
@@ -176,7 +177,12 @@ async def bancho_handler(
     if osu_token is None:
         # the client is performing a login
         async with app.state.services.database.connection() as db_conn:
-            login_data = await login(await request.body(), ip, db_conn)
+            login_data = await login(
+                request.headers,
+                await request.body(),
+                ip,
+                db_conn,
+            )
 
         return Response(
             content=login_data["response_body"],
@@ -516,6 +522,7 @@ def parse_login_data(data: bytes) -> LoginData:
 
 
 async def login(
+    headers: Mapping[str, str],
     body: bytes,
     ip: IPAddress,
     db_conn: databases.core.Connection,
@@ -789,41 +796,33 @@ async def login(
 
     db_country = user_info.pop("country")
 
-    if not ip.is_private:
-        if app.state.services.geoloc_db is not None:
-            # good, dev has downloaded a geoloc db from maxmind,
-            # so we can do a local db lookup. (typically ~1-5ms)
-            # https://www.maxmind.com/en/home
-            geoloc = app.state.services.fetch_geoloc_db(ip)
-        else:
-            # bad, we must do an external db lookup using
-            # a public api. (depends, `ping ip-api.com`)
-            geoloc = await app.state.services.fetch_geoloc_web(ip)
-            if geoloc is None:
-                return {
-                    "osu_token": "login-failed",
-                    "response_body": (
-                        app.packets.notification(
-                            f"{BASE_DOMAIN}: Login failed. Please contact an admin.",
-                        )
-                        + app.packets.user_id(-1)
-                    ),
-                }
+    geoloc = await app.state.services.fetch_geoloc(ip, headers)
 
-        user_info["geoloc"] = geoloc
+    if geoloc is None:
+        return {
+            "osu_token": "login-failed",
+            "response_body": (
+                app.packets.notification(
+                    f"{BASE_DOMAIN}: Login failed. Please contact an admin.",
+                )
+                + app.packets.user_id(-1)
+            ),
+        }
 
-        if db_country == "xx":
-            # bugfix for old bancho.py versions when
-            # country wasn't stored on registration.
-            log(f"Fixing {login_data['username']}'s country.", Ansi.LGREEN)
+    user_info["geoloc"] = geoloc
 
-            await db_conn.execute(
-                "UPDATE users SET country = :country WHERE id = :user_id",
-                {
-                    "country": user_info["geoloc"]["country"]["acronym"],
-                    "user_id": user_info["id"],
-                },
-            )
+    if db_country == "xx":
+        # bugfix for old bancho.py versions when
+        # country wasn't stored on registration.
+        log(f"Fixing {login_data['username']}'s country.", Ansi.LGREEN)
+
+        await db_conn.execute(
+            "UPDATE users SET country = :country WHERE id = :user_id",
+            {
+                "country": user_info["geoloc"]["country"]["acronym"],
+                "user_id": user_info["id"],
+            },
+        )
 
     client_details = ClientDetails(
         osu_version=osu_version,
@@ -1248,7 +1247,7 @@ class SendPrivateMessage(BasePacket):
                             )
 
                             resp_msg = " | ".join(
-                                f"{acc}%: {result['performance']:,.2f}pp"
+                                f"{acc}%: {result['performance']['pp']:,.2f}pp"
                                 for acc, result in zip(
                                     app.settings.PP_CACHED_ACCURACIES,
                                     results,
@@ -1337,7 +1336,7 @@ class MatchCreate(BasePacket):
             map_md5=self.match_data.map_md5,
             # TODO: validate no security hole exists
             host_id=self.match_data.host_id,
-            mode=GameMode(self.match_data.mode),
+            mode=self.match_data.mode,
             mods=Mods(self.match_data.mods),
             win_condition=MatchWinConditions(self.match_data.win_condition),
             team_type=MatchTeamTypes(self.match_data.team_type),
@@ -1581,12 +1580,12 @@ class MatchChangeSettings(BasePacket):
                 player.match.map_id = bmap.id
                 player.match.map_md5 = bmap.md5
                 player.match.map_name = bmap.full_name
-                player.match.mode = player.match.host.status.mode
+                player.match.mode = player.match.host.status.mode.as_vanilla
             else:
                 player.match.map_id = self.match_data.map_id
                 player.match.map_md5 = self.match_data.map_md5
                 player.match.map_name = self.match_data.map_name
-                player.match.mode = GameMode(self.match_data.mode)
+                player.match.mode = self.match_data.mode
 
         if player.match.team_type != self.match_data.team_type:
             # if theres currently a scrim going on, only allow

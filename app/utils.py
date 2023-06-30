@@ -43,7 +43,6 @@ __all__ = (
     "pymysql_encode",
     "escape_enum",
     "ensure_supported_platform",
-    "ensure_connected_services",
     "ensure_directory_structure",
     "setup_runtime_environment",
     "_install_debugging_hooks",
@@ -360,24 +359,6 @@ def ensure_supported_platform() -> int:
     return 0
 
 
-def ensure_connected_services(timeout: float = 1.0) -> int:
-    """Ensure connected service connections are functional and running."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.settimeout(timeout)
-        try:
-            sock.connect((app.settings.DB_HOST, app.settings.DB_PORT))
-        except OSError:
-            log("Unable to connect to mysql server.", Ansi.LRED)
-            return 1
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        try:
-            sock.connect((app.settings.REDIS_HOST, app.settings.REDIS_PORT))
-        except OSError:
-            log("Unable to connect to redis server.", Ansi.LRED)
-            return 1
-    return 0
-
-
 def ensure_directory_structure() -> int:
     """Ensure the .data directory and git submodules are ready."""
     # create /.data and its subdirectories.
@@ -469,7 +450,6 @@ def has_png_headers_and_trailers(data_view: memoryview) -> bool:
     return (
         data_view[:8] == b"\x89PNG\r\n\x1a\n"
         and data_view[-8] == b"\x49END\xae\x42\x60\x82"
-    )
     
     
 # {sentence} WHERE 1=1 AND field1=A AND field2=B
