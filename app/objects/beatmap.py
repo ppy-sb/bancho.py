@@ -58,7 +58,6 @@ async def api_get_beatmaps(**params: Any) -> Optional[list[dict[str, Any]]]:
 
     return None
 
-
 async def ensure_local_osu_file(
     osu_file_path: Path,
     bmap_id: int,
@@ -92,6 +91,7 @@ async def ensure_local_osu_file(
                 # we got the target file
                 return True
     return False
+
 
 
 # for some ungodly reason, different values are used to
