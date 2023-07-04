@@ -263,7 +263,8 @@ class Match:
     @property  # TODO: test cache speed
     def host(self) -> Player:
         player = app.state.sessions.players.get(id=self.host_id)
-        assert player is not None
+        if player is None:
+            player = app.state.sessions.bot # we suggested the bot as the host if player accidentally disappeared
         return player
 
     @property
