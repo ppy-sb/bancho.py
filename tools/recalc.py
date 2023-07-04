@@ -61,28 +61,30 @@ async def recalculate_score(
     try:
         beatmap = Beatmap(path=str(beatmap_path))
 
-        calculator = Calculator(
-            mode=GameMode(score["mode"]).as_vanilla,
-            mods=score["mods"],
-            combo=score["max_combo"],
-            acc=score["acc"],
-            n300=score["n300"],
-            n100=score["n100"],
-            n50=score["n50"],
-            n_geki=score["ngeki"],
-            n_katu=score["nkatu"],
-            n_misses=score["nmiss"],
-        )
+    calculator = Calculator(
+        mode=GameMode(score["mode"]).as_vanilla,
+        mods=score["mods"],
+        acc=score["acc"],
+        combo=score["max_combo"],
+        n_geki=score["ngeki"],  # Mania 320s
+        n300=score["n300"],
+        n_katu=score["nkatu"],  # Mania 200s, Catch tiny droplets
+        n100=score["n100"],
+        n50=score["n50"],
+        n_misses=score["nmiss"],
+    )
+    attrs = calculator.performance(beatmap)
 
-        attrs = calculator.performance(beatmap)
-        new_pp: float = attrs.pp  # type: ignore
-        if math.isnan(new_pp) or math.isinf(new_pp):
-            new_pp = 0.0
-        new_pp = min(new_pp, 9999.999)
-        await ctx.database.execute(
-            "UPDATE scores SET pp = :new_pp, pp_version = :pp_version WHERE id = :id",
-            {"new_pp": new_pp, "id": score["id"], "pp_version": PP_VERSION_TO},
-        )
+    new_pp: float = attrs.pp  # type: ignore
+    if math.isnan(new_pp) or math.isinf(new_pp):
+        new_pp = 0.0
+
+    new_pp = min(new_pp, 9999.999)
+
+    await ctx.database.execute(
+        "UPDATE scores SET pp = :new_pp WHERE id = :id",
+        {"new_pp": new_pp, "id": score["id"]},
+    )
 
         if DEBUG:
             print(
@@ -203,9 +205,18 @@ async def recalculate_mode_scores(mode: GameMode, ctx: Context) -> None:
     scores = [
         dict(row)
         for row in await ctx.database.fetch_all(
-            "SELECT scores.id, scores.mode, scores.mods, scores.n300, scores.n100, scores.n50, scores.nkatu, scores.ngeki, scores.acc, nmiss, scores.max_combo, scores.map_md5, scores.pp, maps.id as map_id FROM scores INNER JOIN maps ON scores.map_md5 = maps.md5 "
-            "WHERE scores.mode = :mode AND pp_version < :pp_version ORDER BY scores.pp DESC",
-            {"mode": mode, "pp_version": PP_VERSION_TO},
+            """\
+            SELECT scores.id, scores.mode, scores.mods, scores.map_md5,
+              scores.pp, scores.acc, scores.max_combo,
+              scores.ngeki, scores.n300, scores.nkatu, scores.n100, scores.n50, scores.nmiss,
+              maps.id as `map_id`
+            FROM scores
+            INNER JOIN maps ON scores.map_md5 = maps.md5
+            WHERE scores.status = 2
+              AND scores.mode = :mode
+            ORDER BY scores.pp DESC
+            """,
+            {"mode": mode},
         )
     ]
 

@@ -51,6 +51,8 @@ DOMAIN = os.environ["DOMAIN"]
 MIRROR_URL = os.environ["MIRROR_URL"]
 ENABLE_SAYO = os.environ["ENABLE_SAYO"]
 
+MIRROR_SEARCH_ENDPOINT = os.environ["MIRROR_SEARCH_ENDPOINT"]
+MIRROR_DOWNLOAD_ENDPOINT = os.environ["MIRROR_DOWNLOAD_ENDPOINT"]
 
 COMMAND_PREFIX = os.environ["COMMAND_PREFIX"]
 
@@ -85,4 +87,4 @@ DEVELOPER_MODE = read_bool(os.environ["DEVELOPER_MODE"])
 ## WARNING touch this if you know how
 ##          the migrations system works.
 ##          you'll regret it.
-VERSION = "4.7.2"
+VERSION = "4.8.1"
