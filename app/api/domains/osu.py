@@ -1758,9 +1758,20 @@ async def get_osz(
         map_set_id = map_set_id[:-1]
 
     query_str = f"{map_set_id}?n={int(not no_video)}"
+    
+    return_url = f"{app.settings.MIRROR_DOWNLOAD_ENDPOINT}/{query_str}"
+    
+    if app.settings.ENABLE_SAYO:
+        request_ip = request.headers.get('x-real-ip')
+        try:
+            country = (requests.get(f"http://ip-api.com/json/{request_ip}", timeout=5).json())["country"]
+        except:
+            country = "Unknown"
+        if country == "China":
+            return_url = f"https://dl.sayobot.cn/beatmaps/download/novideo/{map_set_id}"
 
     return RedirectResponse(
-        url=f"{app.settings.MIRROR_DOWNLOAD_ENDPOINT}/{query_str}",
+        url=return_url,
         status_code=status.HTTP_301_MOVED_PERMANENTLY,
     )
 

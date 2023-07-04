@@ -450,6 +450,7 @@ def has_png_headers_and_trailers(data_view: memoryview) -> bool:
     return (
         data_view[:8] == b"\x89PNG\r\n\x1a\n"
         and data_view[-8] == b"\x49END\xae\x42\x60\x82"
+    )
     
     
 # {sentence} WHERE 1=1 AND field1=A AND field2=B

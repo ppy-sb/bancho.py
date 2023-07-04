@@ -10,6 +10,7 @@ from fastapi.param_functions import Query
 from app.api.v2.common import responses
 from app.api.v2.common.responses import Success
 from app.api.v2.models.maps import Map
+from app.objects.beatmap import Beatmap, BeatmapSet
 from app.repositories import maps as maps_repo
 
 router = APIRouter()
@@ -74,3 +75,16 @@ async def get_map(map_id: int) -> Success[Map]:
 
     response = Map.from_mapping(data)
     return responses.success(response)
+
+
+# @router.get("/maps/refresh/{map_id}")
+# disabled until authorization complete
+async def refresh_map(map_id: int):
+    beatmap = await Beatmap.from_bid(map_id)
+    if beatmap is None:
+        return responses.failure(
+            message="Beatmap not found.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    await beatmap.set.force_update()
+    return responses.success(Map.from_mapping(beatmap.as_dict))
