@@ -90,6 +90,7 @@ def init_middlewares(asgi_app: BanchoAPI) -> None:
     origins = [
         f"http://osu.{app.settings.DOMAIN}",
         f"https://osu.{app.settings.DOMAIN}",
+        f"https://old.{app.settings.DOMAIN}",
     ]
     asgi_app.add_middleware(
         CORSMiddleware,
