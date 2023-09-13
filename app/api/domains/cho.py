@@ -699,7 +699,7 @@ async def login(
     """ login credentials verified """
 
     await logins_repo.create(
-        userid=user_info["id"],
+        user_id=user_info["id"],
         ip=str(ip),
         osu_ver=osu_version.date,
         osu_stream=osu_version.stream,

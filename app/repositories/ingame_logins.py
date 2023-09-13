@@ -24,14 +24,19 @@ READ_PARAMS = textwrap.dedent(
 )
 
 
-async def create(userid: int, ip: str, osu_ver: str, osu_stream: str) -> dict[str, Any]:
+async def create(
+    user_id: int,
+    ip: str,
+    osu_ver: str,
+    osu_stream: str,
+) -> dict[str, Any]:
     """Create a new login entry in the database."""
     query = f"""\
         INSERT INTO ingame_logins (userid, ip, osu_ver, osu_stream, datetime)
              VALUES (:userid, :ip, :osu_ver, :osu_stream, NOW())
     """
     params = {
-        "userid": userid,
+        "userid": user_id,
         "ip": ip,
         "osu_ver": osu_ver,
         "osu_stream": osu_stream,
@@ -53,7 +58,7 @@ async def create(userid: int, ip: str, osu_ver: str, osu_stream: str) -> dict[st
 
 async def fetch_one(
     id: Optional[int] = None,
-    userid: Optional[int] = None,
+    user_id: Optional[int] = None,
     ip: Optional[str] = None,
     osu_ver: Optional[str] = None,
     osu_stream: Optional[str] = None,
@@ -61,7 +66,7 @@ async def fetch_one(
     """Fetch a login entry from the database."""
     if (
         id is None
-        and userid is None
+        and user_id is None
         and ip is None
         and osu_ver is None
         and osu_stream is None
@@ -79,7 +84,7 @@ async def fetch_one(
     """
     params = {
         "id": id,
-        "userid": userid,
+        "userid": user_id,
         "ip": ip,
         "osu_ver": osu_ver,
         "osu_stream": osu_stream,
@@ -89,10 +94,8 @@ async def fetch_one(
 
 
 async def fetch_count(
-    userid: Optional[int] = None,
+    user_id: Optional[int] = None,
     ip: Optional[str] = None,
-    osu_ver: Optional[str] = None,
-    osu_stream: Optional[str] = None,
 ) -> int:
     """Fetch the number of logins in the database."""
     query = """\
@@ -100,15 +103,10 @@ async def fetch_count(
           FROM ingame_logins
         WHERE userid = COALESCE(:userid, userid)
           AND ip = COALESCE(:ip, ip)
-          AND osu_ver = COALESCE(:osu_ver, osu_ver)
-          AND osu_stream = COALESCE(:osu_stream, osu_stream)
-
     """
     params = {
-        "userid": userid,
+        "userid": user_id,
         "ip": ip,
-        "osu_ver": osu_ver,
-        "osu_stream": osu_stream,
     }
     rec = await app.state.services.database.fetch_one(query, params)
     assert rec is not None
@@ -116,7 +114,7 @@ async def fetch_count(
 
 
 async def fetch_many(
-    userid: Optional[int] = None,
+    user_id: Optional[int] = None,
     ip: Optional[str] = None,
     osu_ver: Optional[str] = None,
     osu_stream: Optional[str] = None,
@@ -133,7 +131,7 @@ async def fetch_many(
            AND osu_stream = COALESCE(:osu_stream, osu_stream)
     """
     params = {
-        "userid": userid,
+        "userid": user_id,
         "ip": ip,
         "osu_ver": osu_ver,
         "osu_stream": osu_stream,
@@ -153,7 +151,7 @@ async def fetch_many(
 
 async def update(
     id: int,
-    userid: Optional[int] = None,
+    user_id: Optional[int] = None,
     ip: Optional[str] = None,
     osu_ver: Optional[str] = None,
     osu_stream: Optional[str] = None,
@@ -169,7 +167,7 @@ async def update(
     """
     params = {
         "id": id,
-        "userid": userid,
+        "userid": user_id,
         "ip": ip,
         "osu_ver": osu_ver,
         "osu_stream": osu_stream,
