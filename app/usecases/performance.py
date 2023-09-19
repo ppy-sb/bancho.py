@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from typing import Optional
 from typing import TypedDict
 
-from akatsuki_pp_py import Beatmap
-from akatsuki_pp_py import Calculator
+from rosu_pp_py import Beatmap
+from rosu_pp_py import Calculator
 
 from app.constants.mods import Mods
 
