@@ -265,7 +265,7 @@ async def reconnect(ctx: Context) -> str | None:
     return None
 
 
-@command(Privileges.SUPPORTER)
+# @command(Privileges.SUPPORTER) # ppysb feature: disable ingame name changing
 async def changename(ctx: Context) -> str | None:
     """Change your username."""
     name = " ".join(ctx.args).strip()
