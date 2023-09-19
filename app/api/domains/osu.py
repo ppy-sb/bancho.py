@@ -1758,10 +1758,32 @@ async def get_screenshot(
         path=screenshot_path,
         media_type=app.utils.get_media_type(extension),  # type: ignore
     )
+    
+geo_cache: dict = {}
+    
+async def get_osz_url(
+    headers: Mapping[str, str],
+    beatmapset_id: str,
+    no_video: bool
+) -> str:
+    ip_address = app.state.services.ip_resolver.get_ip(headers)
+    geo_country = geo_cache.get(ip_address)
+    if not geo_country:
+        geoloc = await app.state.services.fetch_geoloc(ip_address, headers)
+        if geoloc:
+            geo_country = geoloc["country"]["acronym"]
+            geo_cache[ip_address] = geo_country
+    if geo_country == "cn":
+        prefix = "novideo" if no_video else "full"
+        return f"https://dl.sayobot.cn/beatmaps/download/{prefix}/{beatmapset_id}"
+    query_str = f"{beatmapset_id}?n={int(not no_video)}"
+    return f"{app.settings.MIRROR_DOWNLOAD_ENDPOINT}/{query_str}"
+    
 
 
 @router.get("/d/{map_set_id}")
 async def get_osz(
+    request: Request,
     map_set_id: str = Path(...),
 ):
     """Handle a map download request (osu.ppy.sh/d/*)."""
@@ -1769,10 +1791,8 @@ async def get_osz(
     if no_video:
         map_set_id = map_set_id[:-1]
 
-    query_str = f"{map_set_id}?n={int(not no_video)}"
-
     return RedirectResponse(
-        url=f"{app.settings.MIRROR_DOWNLOAD_ENDPOINT}/{query_str}",
+        url=await get_osz_url(request.headers, map_set_id, no_video),
         status_code=status.HTTP_301_MOVED_PERMANENTLY,
     )
 
