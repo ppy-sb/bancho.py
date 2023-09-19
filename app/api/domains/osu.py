@@ -1465,11 +1465,15 @@ async def getScores(
 
     if app.state.services.datadog:
         app.state.services.datadog.increment("bancho.leaderboards_served")
+        
+    ### ppysb feature begin
 
-    if bmap.status < RankedStatus.Ranked:
+    # if bmap.status < RankedStatus.Ranked:
         # only show leaderboards for ranked,
         # approved, qualified, or loved maps.
-        return f"{int(bmap.status)}|false".encode()
+        # return f"{int(bmap.status)}|false".encode()
+        
+    ### ppysb feature end
 
     # fetch scores & personal best
     # TODO: create a leaderboard cache
@@ -1492,15 +1496,23 @@ async def getScores(
         rating = 0.0
 
     ## construct response for osu! client
+    
+    ### ppysb feature begin
+    
+    response_status = bmap.status
+    if bmap.status < RankedStatus.Ranked:
+        response_status = RankedStatus.Qualified
 
     response_lines: list[str] = [
         # NOTE: fa stands for featured artist (for the ones that may not know)
         # {ranked_status}|{serv_has_osz2}|{bid}|{bsid}|{len(scores)}|{fa_track_id}|{fa_license_text}
-        f"{int(bmap.status)}|false|{bmap.id}|{bmap.set_id}|{len(score_rows)}|0|",
+        f"{int(response_status)}|false|{bmap.id}|{bmap.set_id}|{len(score_rows)}|0|",
         # {offset}\n{beatmap_name}\n{rating}
         # TODO: server side beatmap offsets
         f"0\n{bmap.full_name}\n{rating}",
     ]
+    
+    ### ppysb feature end
 
     if not score_rows:
         response_lines.extend(("", ""))  # no scores, no personal best
