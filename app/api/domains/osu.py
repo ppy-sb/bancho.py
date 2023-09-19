@@ -643,7 +643,7 @@ async def osuSubmitModularSelector(
     # through but ac'd if not found?
     # TODO: validate token format
     # TODO: save token in the database
-    token: str = Header(...),
+    token: str | None = Header(...), # ppysb feature: none when using ppysb client
     # TODO: do ft & st contain pauses?
     exited_out: bool = Form(..., alias="x"),
     fail_time: int = Form(..., alias="ft"),

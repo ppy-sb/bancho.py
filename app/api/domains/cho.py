@@ -70,6 +70,8 @@ OSU_API_V2_CHANGELOG_URL = "https://osu.ppy.sh/api/v2/changelog"
 
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
 
+PPYSB_CLIENT_VERSION = "b20210125.1 SB Edition.x01" # (ppysb feature)
+
 BASE_DOMAIN = app.settings.DOMAIN
 
 # TODO: dear god
@@ -549,72 +551,75 @@ async def login(
       -8: requires verification
       other: valid id, logged in
     """
+    
 
-    # parse login data
+    # parse login data (ppysb feature)
     login_data = parse_login_data(body)
+    bypass = login_data["osu_version"] == PPYSB_CLIENT_VERSION
 
-    # perform some validation & further parsing on the data
-
-    match = regexes.OSU_VERSION.match(login_data["osu_version"])
-    if match is None:
-        return {
-            "osu_token": "invalid-request",
-            "response_body": b"",
-        }
-
-    osu_version = OsuVersion(
-        date=date(
-            year=int(match["date"][0:4]),
-            month=int(match["date"][4:6]),
-            day=int(match["date"][6:8]),
-        ),
-        revision=int(match["revision"]) if match["revision"] else None,
-        stream=OsuStream(match["stream"] or "stable"),
-    )
-
-    if app.settings.DISALLOW_OLD_CLIENTS:
-        osu_client_stream = osu_version.stream.value
-        if osu_client_stream in ("stable", "beta"):
-            osu_client_stream += "40"  # TODO: why?
-
-        allowed_client_versions = set()
-
-        async with services.http_client.get(
-            OSU_API_V2_CHANGELOG_URL,
-            params={"stream": osu_client_stream},
-        ) as resp:
-            for build in (await resp.json())["builds"]:
-                version = date(
-                    int(build["version"][0:4]),
-                    int(build["version"][4:6]),
-                    int(build["version"][6:8]),
-                )
-                allowed_client_versions.add(version)
-
-                if any(entry["major"] for entry in build["changelog_entries"]):
-                    # this build is a major iteration to the client
-                    # don't allow anything older than this
-                    break
-
-        if osu_version.date not in allowed_client_versions:
+    # perform some validation & further parsing on the data (ppysb feature)
+    
+    if not bypass:
+        match = regexes.OSU_VERSION.match(login_data["osu_version"])
+        if match is None:
             return {
-                "osu_token": "client-too-old",
-                "response_body": (
-                    app.packets.version_update() + app.packets.user_id(-2)
-                ),
+                "osu_token": "invalid-request",
+                "response_body": b"",
             }
 
-    running_under_wine = login_data["adapters_str"] == "runningunderwine"
-    adapters = [a for a in login_data["adapters_str"][:-1].split(".")]
-
-    if not (running_under_wine or any(adapters)):
-        return {
-            "osu_token": "empty-adapters",
-            "response_body": (
-                app.packets.user_id(-1)
-                + app.packets.notification("Please restart your osu! and try again.")
+        osu_version = OsuVersion(
+            date=date(
+                year=int(match["date"][0:4]),
+                month=int(match["date"][4:6]),
+                day=int(match["date"][6:8]),
             ),
-        }
+            revision=int(match["revision"]) if match["revision"] else None,
+            stream=OsuStream(match["stream"] or "stable"),
+        )
+
+        if app.settings.DISALLOW_OLD_CLIENTS:
+            osu_client_stream = osu_version.stream.value
+            if osu_client_stream in ("stable", "beta"):
+                osu_client_stream += "40"  # TODO: why?
+
+            allowed_client_versions = set()
+
+            async with services.http_client.get(
+                OSU_API_V2_CHANGELOG_URL,
+                params={"stream": osu_client_stream},
+            ) as resp:
+                for build in (await resp.json())["builds"]:
+                    version = date(
+                        int(build["version"][0:4]),
+                        int(build["version"][4:6]),
+                        int(build["version"][6:8]),
+                    )
+                    allowed_client_versions.add(version)
+
+                    if any(entry["major"] for entry in build["changelog_entries"]):
+                        # this build is a major iteration to the client
+                        # don't allow anything older than this
+                        break
+
+            if osu_version.date not in allowed_client_versions:
+                return {
+                    "osu_token": "client-too-old",
+                    "response_body": (
+                        app.packets.version_update() + app.packets.user_id(-2)
+                    ),
+                }
+
+        running_under_wine = login_data["adapters_str"] == "runningunderwine"
+        adapters = [a for a in login_data["adapters_str"][:-1].split(".")]
+
+        if not (running_under_wine or any(adapters)):
+            return {
+                "osu_token": "empty-adapters",
+                "response_body": (
+                    app.packets.user_id(-1)
+                    + app.packets.notification("Please restart your osu! and try again.")
+                ),
+            }
 
     ## parsing successful
 
