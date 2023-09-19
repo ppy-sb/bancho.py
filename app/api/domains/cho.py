@@ -559,6 +559,16 @@ async def login(
 
     # perform some validation & further parsing on the data (ppysb feature)
     
+    if bypass:
+        osu_version = OsuVersion(
+            date=date(
+                year=2021,
+                month=1,
+                day=25,
+            ),
+            revision=None,
+            stream=OsuStream("ppysb"),
+        )
     if not bypass:
         match = regexes.OSU_VERSION.match(login_data["osu_version"])
         if match is None:

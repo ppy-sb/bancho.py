@@ -59,7 +59,7 @@ from app.objects import models
 from app.objects.beatmap import Beatmap
 from app.objects.beatmap import ensure_local_osu_file
 from app.objects.beatmap import RankedStatus
-from app.objects.player import Player
+from app.objects.player import OsuStream, Player
 from app.objects.player import Privileges
 from app.objects.score import Grade
 from app.objects.score import Score
@@ -719,39 +719,43 @@ async def osuSubmitModularSelector(
 
     try:
         assert player.client_details is not None
+        
+        bypass = player.client_details.osu_version.stream == OsuStream.PPYSB # ppysb feature
+        
+        if not bypass:
+            
+            if osu_version != f"{player.client_details.osu_version.date:%Y%m%d}":
+                raise ValueError("osu! version mismatch")
 
-        if osu_version != f"{player.client_details.osu_version.date:%Y%m%d}":
-            raise ValueError("osu! version mismatch")
+            if client_hash_decoded != player.client_details.client_hash:
+                raise ValueError("client hash mismatch")
+            # assert unique ids (c1) are correct and match login params
+            if unique_id1_md5 != player.client_details.uninstall_md5:
+                raise ValueError(
+                    f"unique_id1 mismatch ({unique_id1_md5} != {player.client_details.uninstall_md5})",
+                )
 
-        if client_hash_decoded != player.client_details.client_hash:
-            raise ValueError("client hash mismatch")
-        # assert unique ids (c1) are correct and match login params
-        if unique_id1_md5 != player.client_details.uninstall_md5:
-            raise ValueError(
-                f"unique_id1 mismatch ({unique_id1_md5} != {player.client_details.uninstall_md5})",
+            if unique_id2_md5 != player.client_details.disk_signature_md5:
+                raise ValueError(
+                    f"unique_id2 mismatch ({unique_id2_md5} != {player.client_details.disk_signature_md5})",
+                )
+
+            # assert online checksums match
+            server_score_checksum = score.compute_online_checksum(
+                osu_version=osu_version,
+                osu_client_hash=client_hash_decoded,
+                storyboard_checksum=storyboard_md5 or "",
             )
+            if score.client_checksum != server_score_checksum:
+                raise ValueError(
+                    f"online score checksum mismatch ({server_score_checksum} != {score.client_checksum})",
+                )
 
-        if unique_id2_md5 != player.client_details.disk_signature_md5:
-            raise ValueError(
-                f"unique_id2 mismatch ({unique_id2_md5} != {player.client_details.disk_signature_md5})",
-            )
-
-        # assert online checksums match
-        server_score_checksum = score.compute_online_checksum(
-            osu_version=osu_version,
-            osu_client_hash=client_hash_decoded,
-            storyboard_checksum=storyboard_md5 or "",
-        )
-        if score.client_checksum != server_score_checksum:
-            raise ValueError(
-                f"online score checksum mismatch ({server_score_checksum} != {score.client_checksum})",
-            )
-
-        # assert beatmap hashes match
-        if bmap_md5 != updated_beatmap_hash:
-            raise ValueError(
-                f"beatmap hash mismatch ({bmap_md5} != {updated_beatmap_hash})",
-            )
+            # assert beatmap hashes match
+            if bmap_md5 != updated_beatmap_hash:
+                raise ValueError(
+                    f"beatmap hash mismatch ({bmap_md5} != {updated_beatmap_hash})",
+                )
 
     except (ValueError, AssertionError):
         # NOTE: this is undergoing a temporary trial period,
