@@ -917,7 +917,8 @@ async def login(
 
         # the player may have been sent mail while offline,
         # enqueue any messages from their respective authors.
-        mail_rows = await mails_repo.fetch_all(to_id=player.id, read=False)
+        # mail_rows = await mails_repo.fetch_all(to_id=player.id, read=False)
+        mail_rows = None # ppysb feature: disable unread message
 
         if mail_rows:
             sent_to = set()  # ids
