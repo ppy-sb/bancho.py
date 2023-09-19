@@ -758,21 +758,16 @@ async def osuSubmitModularSelector(
                 )
 
     except (ValueError, AssertionError):
-        # NOTE: this is undergoing a temporary trial period,
-        # after which, it will be enabled & perform restrictions.
-        stacktrace = app.utils.get_appropriate_stacktrace()
-        await app.state.services.log_strange_occurrence(stacktrace)
-
-        # await player.restrict(
-        #     admin=app.state.sessions.bot,
-        #     reason="mismatching hashes on score submission",
-        # )
+        await player.restrict(
+            admin=app.state.sessions.bot,
+            reason="mismatching hashes on score submission",
+        )
 
         # refresh their client state
-        # if player.online:
-        #     player.logout()
+        if player.online:
+            player.logout()
 
-        # return b"error: ban"
+        return b"error: ban"
 
     # we should update their activity no matter
     # what the result of the score submission is.
