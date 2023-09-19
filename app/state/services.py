@@ -42,7 +42,7 @@ SQL_UPDATES_FILE = Path.cwd() / "migrations/migrations.sql"
 
 http_client: aiohttp.ClientSession
 database = databases.Database(app.settings.DB_DSN)
-redis: aioredis.Redis = aioredis.from_url(app.settings.REDIS_DSN)
+redis: aioredis.Redis = aioredis.from_url(app.settings.REDIS_DSN, decode_responses=True)
 
 datadog: datadog_client.ThreadStats | None = None
 if str(app.settings.DATADOG_API_KEY) and str(app.settings.DATADOG_APP_KEY):
