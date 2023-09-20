@@ -17,8 +17,8 @@ from typing import Optional
 
 import aiohttp
 import databases
-from akatsuki_pp_py import Beatmap
-from akatsuki_pp_py import Calculator
+from rosu_pp_py import Beatmap
+from rosu_pp_py import Calculator
 from redis import asyncio as aioredis
 
 sys.path.insert(0, os.path.abspath(os.pardir))
@@ -29,6 +29,7 @@ try:
     from app.constants.mods import Mods
     from app.constants.gamemodes import GameMode
     from app.objects.beatmap import ensure_local_osu_file
+    from app.objects.score import Score
     import app.settings
     import app.state.services
 except ModuleNotFoundError:
@@ -60,11 +61,14 @@ async def recalculate_score(
     if beatmap is None:
         beatmap = Beatmap(path=str(beatmap_path))
         ctx.beatmaps[score["map_id"]] = beatmap
+        
+    score_obj = Score(mode=GameMode(score["mode"]), n300=score["n300"], n100=score["n100"], n50=score["n50"], nmiss=score["nmiss"], ngeki=score["ngeki"], nkatu=score["nkatu"])
+    new_accuracy = score_obj.calculate_accuracy()
 
     calculator = Calculator(
         mode=GameMode(score["mode"]).as_vanilla,
         mods=score["mods"],
-        acc=score["acc"],
+        acc=new_accuracy,
         combo=score["max_combo"],
         n_geki=score["ngeki"],  # Mania 320s
         n300=score["n300"],
@@ -82,8 +86,8 @@ async def recalculate_score(
     new_pp = min(new_pp, 9999.999)
 
     await ctx.database.execute(
-        "UPDATE scores SET pp = :new_pp WHERE id = :id",
-        {"new_pp": new_pp, "id": score["id"]},
+        "UPDATE scores SET pp = :new_pp, acc = :new_acc WHERE id = :id",
+        {"new_pp": new_pp, "new_acc": new_accuracy, "id": score["id"]},
     )
 
     if DEBUG:
