@@ -9,10 +9,9 @@ from enum import IntEnum
 from enum import unique
 from functools import cached_property
 from typing import Any
-from typing import Optional
+from typing import cast
 from typing import TYPE_CHECKING
 from typing import TypedDict
-from typing import Union
 
 import databases.core
 
@@ -49,6 +48,7 @@ if TYPE_CHECKING:
     from app.objects.achievement import Achievement
     from app.objects.beatmap import Beatmap
     from app.objects.clan import Clan
+    from app.objects.score import Score
     from app.constants.privileges import ClanPrivileges
 
 __all__ = ("ModeData", "Status", "Player")
@@ -257,7 +257,7 @@ class Player:
 
         # generate a token if not given
         token = extras.get("token", None)
-        if token is not None:
+        if token is not None and isinstance(token, str):
             self.token = token
         else:
             self.token = self.generate_token()
@@ -338,7 +338,7 @@ class Player:
         return f"<{self.name} ({self.id})>"
 
     @property
-    def online(self) -> bool:
+    def is_online(self) -> bool:
         return self.token != ""
 
     @property
@@ -483,7 +483,7 @@ class Player:
         if "bancho_priv" in self.__dict__:
             del self.bancho_priv  # wipe cached_property
 
-        if self.online:
+        if self.is_online:
             # if they're online, send a packet
             # to update their client-side privileges
             self.enqueue(app.packets.bancho_privileges(self.bancho_priv))
@@ -500,7 +500,7 @@ class Player:
         if "bancho_priv" in self.__dict__:
             del self.bancho_priv  # wipe cached_property
 
-        if self.online:
+        if self.is_online:
             # if they're online, send a packet
             # to update their client-side privileges
             self.enqueue(app.packets.bancho_privileges(self.bancho_priv))
@@ -536,7 +536,7 @@ class Player:
             await webhook.post(app.state.services.http_client)
 
         # refresh their client state
-        if self.online:
+        if self.is_online:
             self.logout()
 
     async def unrestrict(self, admin: Player, reason: str) -> None:
@@ -550,7 +550,7 @@ class Player:
             msg=reason,
         )
 
-        if not self.online:
+        if not self.is_online:
             async with app.state.services.database.connection() as db_conn:
                 await self.stats_from_sql_full(db_conn)
 
@@ -573,7 +573,7 @@ class Player:
             webhook = Webhook(webhook_url, content=log_msg)
             await webhook.post(app.state.services.http_client)
 
-        if self.online:
+        if self.is_online:
             # log the user out if they're offline, this
             # will simply relog them and refresh their app.state
             self.logout()
@@ -657,7 +657,7 @@ class Player:
             log(f"{self} failed to join {match.chat}.", Ansi.LYELLOW)
             return False
 
-        lobby = app.state.sessions.channels["#lobby"]
+        lobby = app.state.sessions.channels.get_by_name("#lobby")
         if lobby in self.channels:
             self.leave_channel(lobby)
 
@@ -712,7 +712,7 @@ class Player:
 
             app.state.sessions.matches.remove(self.match)
 
-            lobby = app.state.sessions.channels["#lobby"]
+            lobby = app.state.sessions.channels.get_by_name("#lobby")
             if lobby:
                 lobby.enqueue(app.packets.dispose_match(self.match.id))
 
@@ -827,7 +827,7 @@ class Player:
         """Attempt to add `player` to `self`'s spectators."""
         chan_name = f"#spec_{self.id}"
 
-        spec_chan = app.state.sessions.channels[chan_name]
+        spec_chan = app.state.sessions.channels.get_by_name(chan_name)
         if not spec_chan:
             # spectator chan doesn't exist, create it.
             spec_chan = Channel(
@@ -868,7 +868,9 @@ class Player:
         self.spectators.remove(player)
         player.spectating = None
 
-        channel = app.state.sessions.channels[f"#spec_{self.id}"]
+        channel = app.state.sessions.channels.get_by_name(f"#spec_{self.id}")
+        assert channel is not None
+
         player.leave_channel(channel)
 
         if not self.spectators:
@@ -1002,7 +1004,7 @@ class Player:
             f"bancho:leaderboard:{mode.value}",
             str(self.id),
         )
-        return rank + 1 if rank is not None else 0
+        return cast(int, rank) + 1 if rank is not None else 0
 
     async def get_country_rank(self, mode: GameMode) -> int:
         if self.restricted:
@@ -1014,7 +1016,7 @@ class Player:
             str(self.id),
         )
 
-        return rank + 1 if rank is not None else 0
+        return cast(int, rank) + 1 if rank is not None else 0
 
     async def update_rank(self, mode: GameMode) -> int:
         country = self.geoloc["country"]["acronym"]

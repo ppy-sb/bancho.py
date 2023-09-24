@@ -3,9 +3,7 @@ from __future__ import annotations
 from typing import Any
 from typing import Generic
 from typing import Literal
-from typing import Optional
 from typing import TypeVar
-from typing import Union
 
 from pydantic import BaseModel
 
@@ -43,7 +41,7 @@ def failure(
     # TODO: error code
     message: str,
     status_code: int = 400,
-    headers: dict | None = None,
+    headers: dict[str, Any] | None = None,
 ) -> Any:
     data = {"status": "error", "error": message}
     return json.ORJSONResponse(data, status_code, headers)
