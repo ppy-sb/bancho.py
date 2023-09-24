@@ -47,6 +47,7 @@ from starlette.datastructures import UploadFile as StarletteUploadFile
 import app.packets
 import app.settings
 import app.state
+from app.usecases.anticheat import CheatError
 import app.utils
 from app.constants import regexes
 from app.constants.clientflags import LastFMFlags
@@ -716,13 +717,32 @@ async def osuSubmitModularSelector(
     unique_id1, unique_id2 = unique_ids.split("|", maxsplit=1)
     unique_id1_md5 = hashlib.md5(unique_id1.encode()).hexdigest()
     unique_id2_md5 = hashlib.md5(unique_id2.encode()).hexdigest()
+    
+    if score.passed:
+        replay_data = await replay_file.read()
+
+        MIN_REPLAY_SIZE = 24
+
+        if len(replay_data) >= MIN_REPLAY_SIZE:
+            replay_file = REPLAYS_PATH / f"{score.id}.osr"
+            replay_file.write_bytes(replay_data)
+        else:
+            log(f"{score.player} submitted a score without a replay!", Ansi.LRED)
+
+            if not score.player.restricted:
+                await score.player.restrict(
+                    admin=app.state.sessions.bot,
+                    reason="submitted score with no replay",
+                )
+                if score.player.online:
+                    score.player.logout()
 
     try:
         assert player.client_details is not None
         
-        bypass = player.client_details.osu_version.stream == OsuStream.PPYSB # ppysb feature
+        bypass_client_check = player.client_details.osu_version.stream == OsuStream.PPYSB # ppysb feature
         
-        if not bypass:
+        if not bypass_client_check:
             
             if osu_version != f"{player.client_details.osu_version.date:%Y%m%d}":
                 raise ValueError("osu! version mismatch")
@@ -756,18 +776,21 @@ async def osuSubmitModularSelector(
                 raise ValueError(
                     f"beatmap hash mismatch ({bmap_md5} != {updated_beatmap_hash})",
                 )
+                
+        app.usecases.anticheat.suspect(score, REPLAYS_PATH / f"{score.id}.osr")
 
-    except (ValueError, AssertionError):
-        await player.restrict(
-            admin=app.state.sessions.bot,
-            reason="mismatching hashes on score submission",
-        )
+    except (ValueError, AssertionError, CheatError) as error:
+        if error.args.count == 1:
+            await player.restrict(
+                admin=app.state.sessions.bot,
+                reason=error.args[0],
+            )
 
-        # refresh their client state
-        if player.online:
-            player.logout()
+            # refresh their client state
+            if player.online:
+                player.logout()
 
-        return b"error: ban"
+            return b"error: ban"
 
     # we should update their activity no matter
     # what the result of the score submission is.
@@ -941,25 +964,6 @@ async def osuSubmitModularSelector(
             "checksum": score.client_checksum,
         },
     )
-
-    if score.passed:
-        replay_data = await replay_file.read()
-
-        MIN_REPLAY_SIZE = 24
-
-        if len(replay_data) >= MIN_REPLAY_SIZE:
-            replay_file = REPLAYS_PATH / f"{score.id}.osr"
-            replay_file.write_bytes(replay_data)
-        else:
-            log(f"{score.player} submitted a score without a replay!", Ansi.LRED)
-
-            if not score.player.restricted:
-                await score.player.restrict(
-                    admin=app.state.sessions.bot,
-                    reason="submitted score with no replay",
-                )
-                if score.player.online:
-                    score.player.logout()
 
     """ Update the user's & beatmap's stats """
 

@@ -42,3 +42,4 @@ uvicorn==0.23.2; python_version >= '3.8'
 uvloop==0.17.0; python_version >= '3.7'
 yarl==1.9.2; python_version >= '3.7'
 git+https://github.com/ppy-sb/rosu-pp-py
+circleguard
