@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 import app.state
 import app.usecases.performance
 import app.utils
+from app import settings
 from app.constants.clientflags import ClientFlags
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
@@ -19,6 +20,7 @@ from app.repositories import scores as scores_repo
 from app.usecases.performance import ScoreParams
 from app.utils import escape_enum
 from app.utils import pymysql_encode
+from circleguard import Circleguard, ReplayPath
 
 if TYPE_CHECKING:
     from app.objects.player import Player
@@ -26,7 +28,11 @@ if TYPE_CHECKING:
 __all__ = ("Grade", "SubmissionStatus", "Score")
 
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
+REPLAYS_PATH = Path.cwd() / ".data/osr"
 
+circleguard = Circleguard(settings.OSU_API_KEY)
+
+class SuspectedError(Exception): ...
 
 @unique
 class Grade(IntEnum):
@@ -455,3 +461,21 @@ class Score:
             "WHERE id = :user_id AND mode = :mode",
             {"user_id": self.player.id, "mode": self.mode},
         )
+        
+        
+    async def check_suspicion(self):
+        replay_path = REPLAYS_PATH / f"{self.id}.osr"
+        
+        replay = ReplayPath(replay_path)
+        snaps = circleguard.snaps(replay)
+        frametime = circleguard.frametime(replay)
+        ur = circleguard.ur(replay)
+        
+        if frametime < 14:
+            raise SuspectedError(f"timewarp cheating (frametime: {frametime:.2f}) on {self.bmap.title}")
+        
+        if (not self.mods & Mods.RELAX) and ur < 70:
+            raise SuspectedError(f"potential relax (ur: {ur:.2f}) on {self.bmap.title})")
+        
+        if len(snaps) > 20:
+            raise SuspectedError(f"potential assist (snaps: {len(snaps):.2f}) on {self.bmap.title})")

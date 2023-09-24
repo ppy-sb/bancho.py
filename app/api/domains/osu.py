@@ -43,7 +43,6 @@ from starlette.datastructures import UploadFile as StarletteUploadFile
 import app.packets
 import app.settings
 import app.state
-from app.usecases.anticheat import CheatError
 import app.utils
 from app._typing import UNSET
 from app.constants import regexes
@@ -62,6 +61,7 @@ from app.objects.player import Privileges
 from app.objects.score import Grade
 from app.objects.score import Score
 from app.objects.score import SubmissionStatus
+from app.objects.score import SuspectedError
 from app.repositories import mails as mails_repo
 from app.repositories import maps as maps_repo
 from app.repositories import players as players_repo
@@ -772,10 +772,9 @@ async def osuSubmitModularSelector(
                 raise ValueError(
                     f"beatmap hash mismatch ({bmap_md5} != {updated_beatmap_hash})",
                 )
-                
-        app.usecases.anticheat.suspect(score, REPLAYS_PATH / f"{score.id}.osr")
+        await score.check_suspicion()
 
-    except (ValueError, AssertionError, CheatError) as error:
+    except (ValueError, AssertionError) as error:
         if error.args.count == 1:
             await player.restrict(
                 admin=app.state.sessions.bot,
@@ -787,6 +786,9 @@ async def osuSubmitModularSelector(
                 player.logout()
 
             return b"error: ban"
+        
+    except (SuspectedError) as error:
+        pass
 
     # we should update their activity no matter
     # what the result of the score submission is.
