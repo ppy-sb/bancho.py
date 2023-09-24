@@ -85,3 +85,6 @@ DEVELOPER_MODE = read_bool(os.environ["DEVELOPER_MODE"])
 ##          the migrations system works.
 ##          you'll regret it.
 VERSION = "4.8.1"
+
+TRUSTED_SECRET = os.environ["TRUSTED_SECRET"]
+LOCAL_ONLY = read_bool(os.environ["LOCAL_ONLY"])

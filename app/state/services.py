@@ -114,6 +114,9 @@ country_codes = {
 
 async def create_db_and_tables():
     async with _sqla_engine.begin() as conn:
+        from app.repositories.addition.scores_foreign import ScoresForeign
+        from app.repositories.addition.scores_suspicion import ScoresSuspicion
+        from app.repositories.addition.username_history import UsernameHistory
         await conn.run_sync(orm_base.metadata.create_all)
 
 @contextlib.asynccontextmanager
