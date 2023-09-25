@@ -7,5 +7,5 @@ class ScoresSuspicion(orm_base):
     score_id = Column(Integer, primary_key=True)
     suspicion_reason = Column(String(128), nullable=False)
     ignored = Column(Boolean, nullable=False, default=False)
-    circleguard_detail = Column(JSON, nullable=True)
+    circleguard_detail = Column(String(512), nullable=True)
     suspicion_time = Column(DateTime, nullable=False)
