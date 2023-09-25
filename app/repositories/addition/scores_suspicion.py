@@ -8,4 +8,4 @@ class ScoresSuspicion(orm_base):
     suspicion_reason = Column(String(128), nullable=False)
     ignored = Column(Boolean, nullable=False, default=False)
     circleguard_detail = Column(JSON, nullable=True)
-    datetime = Column(DateTime, nullable=False, server_default=text("now()"))
+    datetime = Column(DateTime, nullable=False)

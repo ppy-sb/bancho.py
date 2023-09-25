@@ -10,4 +10,4 @@ class ScoresForeign(orm_base):
     original_player_id = Column(Integer, nullable=False)
     recipient_id = Column(Integer, nullable=False)
     has_replay = Column(Boolean, nullable=False)
-    receipt_time = Column(DateTime, nullable=False, server_default=text("now()"))
+    receipt_time = Column(DateTime, nullable=False)
