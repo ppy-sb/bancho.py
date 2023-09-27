@@ -1,6 +1,7 @@
 import asyncio
 from collections import deque
 import os
+from pathlib import Path
 import sys
 from typing import Sequence
 import aiohttp
@@ -13,10 +14,12 @@ os.chdir(os.path.abspath(os.pardir))
 
 from app import logging, state
 from app.objects import collections
-from app.objects.beatmap import BeatmapSet
+from app.objects.beatmap import BeatmapSet, ensure_local_osu_file
 
-prod_database = databases.Database("mysql://root:@mysql:3306/prod")
-dev_database = databases.Database("mysql://root:@mysql:3306/banchopy")
+BEATMAPS_PATH = Path.cwd() / ".data/osu"
+
+prod_database = databases.Database("mysql://ppysb:@localhost:3306/banchopy_migration")
+dev_database = databases.Database("mysql://ppysb:@localhost:3306/banchopy_prod")
 
 async def prepare_ctx():
     state.loop = asyncio.get_running_loop()
@@ -42,7 +45,11 @@ async def retrieve_data(query: str):
 
 @retry(reraise=True, stop=stop_after_attempt(3))
 async def api_get_beatmaps(set_id: int):
-    await BeatmapSet._from_bsid_osuapi(set_id)
+    beatmap_set = await BeatmapSet._from_bsid_osuapi(set_id)
+    if beatmap_set is not None:
+        for map in beatmap_set.maps:
+            beatmap_path = BEATMAPS_PATH / f"{str(map.id)}.osu"
+            await ensure_local_osu_file(beatmap_path, map.id, map.md5)
     
     
 async def handle_beatmaps():
