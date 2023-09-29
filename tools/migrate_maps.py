@@ -60,9 +60,12 @@ async def handle_beatmaps():
     
     while True:
         for _ in range(1000):
-            record = beatmaps_queue.pop()
-            await api_get_beatmaps(record['set_id'])
-            counter += 1
+            try:
+                record = beatmaps_queue.pop()
+                await api_get_beatmaps(record['set_id'])
+                counter += 1
+            except Exception:
+                logging.log(f"Caught exception at {str(record['set_id'])}")
         
         logging.log(f"Cursor at {str(record['set_id'])}, Counter at {str(counter)}", logging.Ansi.GREEN)
         
