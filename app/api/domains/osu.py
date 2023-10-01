@@ -1511,7 +1511,7 @@ async def getScores(
     
     response_status = bmap.status
     if bmap.status < RankedStatus.Ranked:
-        response_status = RankedStatus.Qualified
+        response_status = RankedStatus.Approved
 
     response_lines: list[str] = [
         # NOTE: fa stands for featured artist (for the ones that may not know)
