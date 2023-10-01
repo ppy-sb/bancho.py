@@ -60,45 +60,48 @@ async def recalculate_score(
     beatmap_path: Path,
     ctx: Context,
 ) -> None:
-    beatmap = ctx.beatmaps.get(score["map_id"])
-    if beatmap is None:
-        beatmap = Beatmap(path=str(beatmap_path))
-        ctx.beatmaps[score["map_id"]] = beatmap
-        
-    score_obj = Score()
-    score_obj.mode = GameMode(score["mode"])
-    score_obj.n300 = score["n300"]
-    score_obj.n100 = score["n100"]
-    score_obj.n50 = score["n50"]
-    score_obj.nmiss = score["nmiss"]
-    score_obj.ngeki = score["ngeki"]
-    score_obj.nkatu = score["nkatu"]
-    new_accuracy = score_obj.calculate_accuracy()
+    try:
+        beatmap = ctx.beatmaps.get(score["map_id"])
+        if beatmap is None:
+            beatmap = Beatmap(path=str(beatmap_path))
+            ctx.beatmaps[score["map_id"]] = beatmap
+            
+        score_obj = Score()
+        score_obj.mode = GameMode(score["mode"])
+        score_obj.n300 = score["n300"]
+        score_obj.n100 = score["n100"]
+        score_obj.n50 = score["n50"]
+        score_obj.nmiss = score["nmiss"]
+        score_obj.ngeki = score["ngeki"]
+        score_obj.nkatu = score["nkatu"]
+        new_accuracy = score_obj.calculate_accuracy()
 
-    calculator = Calculator(
-        mode=GameMode(score["mode"]).as_vanilla,
-        mods=score["mods"],
-        acc=new_accuracy,
-        combo=score["max_combo"],
-        n_geki=score["ngeki"],  # Mania 320s
-        n300=score["n300"],
-        n_katu=score["nkatu"],  # Mania 200s, Catch tiny droplets
-        n100=score["n100"],
-        n50=score["n50"],
-        n_misses=score["nmiss"],
-    )
-    attrs = calculator.performance(beatmap)
+        calculator = Calculator(
+            mode=GameMode(score["mode"]).as_vanilla,
+            mods=score["mods"],
+            acc=new_accuracy,
+            combo=score["max_combo"],
+            n_geki=score["ngeki"],  # Mania 320s
+            n300=score["n300"],
+            n_katu=score["nkatu"],  # Mania 200s, Catch tiny droplets
+            n100=score["n100"],
+            n50=score["n50"],
+            n_misses=score["nmiss"],
+        )
+        attrs = calculator.performance(beatmap)
 
-    new_pp: float = attrs.pp
-    if math.isnan(new_pp) or math.isinf(new_pp):
-        new_pp = 0.0
+        new_pp: float = attrs.pp
+        if math.isnan(new_pp) or math.isinf(new_pp):
+            new_pp = 0.0
 
-    new_pp = min(new_pp, 9999.999)
+        new_pp = min(new_pp, 9999.999)
 
-    await ctx.database.execute(
-        "UPDATE scores SET pp = :new_pp, acc = :new_acc WHERE id = :id",
-        {"new_pp": new_pp, "new_acc": new_accuracy, "id": score["id"]},
-    )
+        await ctx.database.execute(
+            "UPDATE scores SET pp = :new_pp, acc = :new_acc WHERE id = :id",
+            {"new_pp": new_pp, "new_acc": new_accuracy, "id": score["id"]},
+        )
+    except Exception:
+        return
 
     if DEBUG:
         print(
