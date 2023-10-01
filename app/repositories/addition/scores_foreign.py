@@ -4,7 +4,7 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, BigInteger
 class ScoresForeign(orm_base):
     __tablename__ = "scores_foreign"
     
-    id = Column(Integer, primary_key=True)
+    id = Column(BigInteger, primary_key=True)
     server = Column(String(32), nullable=False)
     original_score_id = Column(BigInteger, nullable=True)
     original_player_id = Column(Integer, nullable=True)

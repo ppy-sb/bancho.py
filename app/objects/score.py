@@ -5,8 +5,10 @@ import hashlib
 from datetime import datetime
 from enum import IntEnum
 from enum import unique
+from json import dumps
 from pathlib import Path
 from typing import TYPE_CHECKING
+from app.repositories.addition.scores_suspicion import ScoresSuspicion
 
 import app.state
 import app.usecases.performance
@@ -31,8 +33,6 @@ BEATMAPS_PATH = Path.cwd() / ".data/osu"
 REPLAYS_PATH = Path.cwd() / ".data/osr"
 
 circleguard = Circleguard(settings.OSU_API_KEY)
-
-class SuspectedError(Exception): ...
 
 @unique
 class Grade(IntEnum):
@@ -461,21 +461,53 @@ class Score:
             "WHERE id = :user_id AND mode = :mode",
             {"user_id": self.player.id, "mode": self.mode},
         )
-        
+    
+    async def save_suspicion(self, reason: str, detail: dict):
+        async with app.state.services.db_session() as session:
+            obj = ScoresSuspicion(score_id=self.id, suspicion_reason=reason, suspicion_time=datetime.now(), detail=detail)
+            await app.orm_utils.add_model(session, obj)
         
     async def check_suspicion(self):
         replay_path = REPLAYS_PATH / f"{self.id}.osr"
+        
+        frametime_limition = 14
+        vanilla_ur_limition = 70
+        snaps_limition = 20
         
         replay = ReplayPath(replay_path)
         snaps = circleguard.snaps(replay)
         frametime = circleguard.frametime(replay)
         ur = circleguard.ur(replay)
         
-        if frametime < 14:
-            raise SuspectedError(f"timewarp cheating (frametime: {frametime:.2f}) on {self.bmap.title}")
+        detail = {
+            'beatmap': {
+                'title': self.bmap.title,
+                'bid': self.bmap.id,
+                'sid': self.bmap.set_id,
+                'md5': self.bmap.md5,
+            },
+            'score': {
+                'score_id': self.id,
+                'pp': self.pp,
+                'mode': repr(self.mode),
+                'mods': repr(self.mods)
+            },
+            'user': {
+                'user_id': self.player.id,
+                'username': self.player.full_name
+            },
+            'analysis': {
+                'frametime': frametime,
+                'ur': ur,
+                'snaps': len(snaps)
+            }
+        }
         
-        if (not self.mods & Mods.RELAX) and ur < 70:
-            raise SuspectedError(f"potential relax (ur: {ur:.2f}) on {self.bmap.title})")
+        if frametime < frametime_limition:
+            await self.save_suspicion(f"timewarp cheating (frametime: {frametime:.2f}) / {frametime_limition})", detail)
         
-        if len(snaps) > 20:
-            raise SuspectedError(f"potential assist (snaps: {len(snaps):.2f}) on {self.bmap.title})")
+        if (not self.mods & Mods.RELAX) and ur < vanilla_ur_limition:
+            await self.save_suspicion(f"potential relax (ur: {ur:.2f} / {vanilla_ur_limition})", detail)
+        
+        if len(snaps) > snaps_limition:
+            await self.save_suspicion(f"potential assist (snaps: {len(snaps):.2f} / {snaps_limition})", detail)

@@ -61,7 +61,6 @@ from app.objects.player import Privileges
 from app.objects.score import Grade
 from app.objects.score import Score
 from app.objects.score import SubmissionStatus
-from app.objects.score import SuspectedError
 from app.repositories import mails as mails_repo
 from app.repositories import maps as maps_repo
 from app.repositories import players as players_repo
@@ -713,25 +712,6 @@ async def osuSubmitModularSelector(
     unique_id1, unique_id2 = unique_ids.split("|", maxsplit=1)
     unique_id1_md5 = hashlib.md5(unique_id1.encode()).hexdigest()
     unique_id2_md5 = hashlib.md5(unique_id2.encode()).hexdigest()
-    
-    if score.passed:
-        replay_data = await replay_file.read()
-
-        MIN_REPLAY_SIZE = 24
-
-        if len(replay_data) >= MIN_REPLAY_SIZE:
-            replay_file = REPLAYS_PATH / f"{score.id}.osr"
-            replay_file.write_bytes(replay_data)
-        else:
-            log(f"{score.player} submitted a score without a replay!", Ansi.LRED)
-
-            if not score.player.restricted:
-                await score.player.restrict(
-                    admin=app.state.sessions.bot,
-                    reason="submitted score with no replay",
-                )
-                if score.player.online:
-                    score.player.logout()
 
     try:
         assert player.client_details is not None
@@ -772,8 +752,7 @@ async def osuSubmitModularSelector(
                 raise ValueError(
                     f"beatmap hash mismatch ({bmap_md5} != {updated_beatmap_hash})",
                 )
-        await score.check_suspicion()
-
+                
     except (ValueError, AssertionError) as error:
         if error.args.count == 1:
             await player.restrict(
@@ -786,9 +765,6 @@ async def osuSubmitModularSelector(
                 player.logout()
 
             return b"error: ban"
-        
-    except (SuspectedError) as error:
-        pass
 
     # we should update their activity no matter
     # what the result of the score submission is.
@@ -962,6 +938,28 @@ async def osuSubmitModularSelector(
             "checksum": score.client_checksum,
         },
     )
+    
+    if score.passed:
+        replay_data = await replay_file.read()
+
+        MIN_REPLAY_SIZE = 24
+
+        if len(replay_data) >= MIN_REPLAY_SIZE:
+            replay_file = REPLAYS_PATH / f"{score.id}.osr"
+            replay_file.write_bytes(replay_data)
+        else:
+            log(f"{score.player} submitted a score without a replay!", Ansi.LRED)
+
+            if not score.player.restricted:
+                await score.player.restrict(
+                    admin=app.state.sessions.bot,
+                    reason="submitted score with no replay",
+                )
+                if score.player.online:
+                    score.player.logout()
+                    
+    # suspect the score after the replay file written
+    # await score.check_suspicion()
 
     """ Update the user's & beatmap's stats """
 

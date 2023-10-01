@@ -63,7 +63,7 @@ async def query_model(session: AsyncSession, sentence, condition=None, offset=-1
     return model
 
 
-async def select_models(session: AsyncSession, obj: Generic[V], condition=None, offset=-1, limit=-1, order_by=None) -> ScalarResult[V]:
+async def select_models(session: AsyncSession, obj: Generic[V], condition=None, offset=-1, limit=-1, order_by=None) -> ScalarResult:
     sentence = _build_select_sentence(obj, condition, offset, limit, order_by)
     model = await session.scalars(sentence)
     return model
