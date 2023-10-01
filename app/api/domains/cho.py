@@ -569,6 +569,7 @@ async def login(
             revision=None,
             stream=OsuStream("ppysb"),
         )
+        running_under_wine = False
     if not bypass:
         match = regexes.OSU_VERSION.match(login_data["osu_version"])
         if match is None:
