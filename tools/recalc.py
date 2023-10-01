@@ -65,7 +65,14 @@ async def recalculate_score(
         beatmap = Beatmap(path=str(beatmap_path))
         ctx.beatmaps[score["map_id"]] = beatmap
         
-    score_obj = Score(mode=GameMode(score["mode"]), n300=score["n300"], n100=score["n100"], n50=score["n50"], nmiss=score["nmiss"], ngeki=score["ngeki"], nkatu=score["nkatu"])
+    score_obj = Score()
+    score_obj.mode = GameMode(score["mode"])
+    score_obj.n300 = score["n300"]
+    score_obj.n100 = score["n100"]
+    score_obj.n50 = score["n50"]
+    score_obj.nmiss = score["nmiss"]
+    score_obj.ngeki = score["ngeki"]
+    score_obj.nkatu = score["nkatu"]
     new_accuracy = score_obj.calculate_accuracy()
 
     calculator = Calculator(
@@ -111,7 +118,7 @@ async def process_score_chunk(
         tasks.append(recalculate_score(score, beatmap_path, ctx))
 
     await asyncio.gather(*tasks)
-
+    
 
 async def recalculate_user(
     id: int,
@@ -129,6 +136,7 @@ async def recalculate_user(
 
     total_scores = len(best_scores)
     if not total_scores:
+        await ctx.database.execute(f"REPLACE INTO stats values ({id}, {int(game_mode)}, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0)")
         return
 
     top_100_pp = best_scores[:100]
@@ -142,11 +150,38 @@ async def recalculate_user(
     weighted_pp = sum(row["pp"] * 0.95**i for i, row in enumerate(top_100_pp))
     bonus_pp = 416.6667 * (1 - 0.9994**total_scores)
     pp = round(weighted_pp + bonus_pp)
-
-    await ctx.database.execute(
-        "UPDATE stats SET pp = :pp, acc = :acc WHERE id = :id AND mode = :mode",
-        {"pp": pp, "acc": acc, "id": id, "mode": game_mode},
+    
+    total_hits_sum = "n300 + n100 + n50"
+    if game_mode.as_vanilla in (1, 3):
+        sum_content += " + ngeki + nkatu"
+    
+    scores_data_all = await ctx.database.fetch_one(
+        f"SELECT sum(score), count(id), sum(time_elapsed), sum({total_hits_sum}) FROM scores "
+        "WHERE userid = :user_id AND mode = :mode ",
+        {"user_id": id, "mode": game_mode},
     )
+    
+    scores_data_ranked = await ctx.database.fetch_one(
+        "SELECT sum(s.score), max(s.max_combo), count(grade='XH' or NULL), count(grade='X' or NULL), count(grade='SH' or NULL), count(grade='S' or NULL), count(grade='A' or NULL) FROM scores s "
+        "INNER JOIN maps m ON s.map_md5 = m.md5 "
+        "WHERE s.userid = :user_id AND s.mode = :mode "
+        "AND s.status = 2 AND m.status IN (2, 3)",  # ranked, approved
+        {"user_id": id, "mode": game_mode},
+    )
+    
+    tscore = scores_data_all[0]
+    rscore = scores_data_ranked[0]
+    plays = scores_data_all[1]
+    playtime = int(scores_data_all[2] / 1000)
+    max_combo = scores_data_ranked[1]
+    total_hits = scores_data_all[3]
+    xh_count = scores_data_ranked[2]
+    x_count = scores_data_ranked[3]
+    sh_count = scores_data_ranked[4]
+    s_count = scores_data_ranked[5]
+    a_count = scores_data_ranked[6]
+    
+    await ctx.database.execute(f"REPLACE INTO stats values ({id}, {int(game_mode)}, {tscore}, {rscore}, {pp}, {plays}, {playtime}, {acc}, {max_combo}, {total_hits}, 0, {xh_count}, {x_count}, {sh_count}, {s_count}, {a_count})")
 
     user_info = await ctx.database.fetch_one(
         "SELECT country, priv FROM users WHERE id = :id",
@@ -226,13 +261,13 @@ async def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("-d", "--debug", action="store_true")
     parser.add_argument(
         "--scores",
-        description="Recalculate scores",
+        help="Recalculate scores",
         action="store_true",
         default=True,
     )
     parser.add_argument(
         "--stats",
-        description="Recalculate stats",
+        help="Recalculate stats",
         action="store_true",
         default=True,
     )
