@@ -165,10 +165,18 @@ async def recalculate_user(
     )
     
     scores_data_ranked = await ctx.database.fetch_one(
-        "SELECT sum(s.score), max(s.max_combo), count(grade='XH' or NULL), count(grade='X' or NULL), count(grade='SH' or NULL), count(grade='S' or NULL), count(grade='A' or NULL) FROM scores s "
+        "SELECT sum(s.score), max(s.max_combo) FROM scores s "
         "INNER JOIN maps m ON s.map_md5 = m.md5 "
         "WHERE s.userid = :user_id AND s.mode = :mode "
         "AND s.status = 2 AND m.status IN (2, 3)",  # ranked, approved
+        {"user_id": id, "mode": game_mode},
+    )
+    
+    scores_data_ranked_first = await ctx.database.fetch_one(
+        "SELECT count(grade='XH' or NULL), count(grade='X' or NULL), count(grade='SH' or NULL), count(grade='S' or NULL), count(grade='A' or NULL) FROM scores s "
+        "INNER JOIN maps m ON s.map_md5 = m.md5 "
+        "WHERE s.userid = :user_id AND s.mode = :mode "
+        "AND s.status = 2 AND m.status IN (2, 3) AND s.status=2",  # ranked, approved, first
         {"user_id": id, "mode": game_mode},
     )
     
@@ -178,11 +186,11 @@ async def recalculate_user(
     playtime = int(scores_data_all[2] / 1000)
     max_combo = scores_data_ranked[1]
     total_hits = scores_data_all[3]
-    xh_count = scores_data_ranked[2]
-    x_count = scores_data_ranked[3]
-    sh_count = scores_data_ranked[4]
-    s_count = scores_data_ranked[5]
-    a_count = scores_data_ranked[6]
+    xh_count = scores_data_ranked_first[0]
+    x_count = scores_data_ranked_first[1]
+    sh_count = scores_data_ranked_first[2]
+    s_count = scores_data_ranked_first[3]
+    a_count = scores_data_ranked_first[4]
     
     await ctx.database.execute(f"REPLACE INTO stats values ({id}, {int(game_mode)}, {tscore}, {rscore}, {pp}, {plays}, {playtime}, {acc}, {max_combo}, {total_hits}, 0, {xh_count}, {x_count}, {sh_count}, {s_count}, {a_count})")
 
@@ -225,8 +233,9 @@ async def recalculate_mode_users(mode: GameMode, ctx: Context) -> None:
         row["id"] for row in await ctx.database.fetch_all("SELECT id FROM users")
     ]
 
-    for id_chunk in divide_chunks(user_ids, 100):
+    for id_chunk in divide_chunks(user_ids, 10):
         await process_user_chunk(id_chunk, mode, ctx)
+        asyncio.sleep(1.0)
 
 
 async def recalculate_mode_scores(mode: GameMode, ctx: Context) -> None:
