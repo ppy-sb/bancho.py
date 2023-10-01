@@ -156,7 +156,7 @@ async def recalculate_user(
     
     total_hits_sum = "n300 + n100 + n50"
     if game_mode.as_vanilla in (1, 3):
-        sum_content += " + ngeki + nkatu"
+        total_hits_sum += " + ngeki + nkatu"
     
     scores_data_all = await ctx.database.fetch_one(
         f"SELECT sum(score), count(id), sum(time_elapsed), sum({total_hits_sum}) FROM scores "
