@@ -449,7 +449,7 @@ DIRECT_MAP_INFO_FMTSTR = (
 
 @router.get("/web/osu-search.php")
 async def osuSearchHandler(
-    player: Player = Depends(authenticate_player_session(Query, "u", "h")),
+    # player: Player = Depends(authenticate_player_session(Query, "u", "h")),
     ranked_status: int = Query(..., alias="r", ge=0, le=8),
     query: str = Query(..., alias="q"),
     mode: int = Query(..., alias="m", ge=-1, le=3),  # -1 for all
