@@ -720,7 +720,8 @@ class Player:
             if self is self.match.host:
                 # player was host, trasnfer to first occupied slot
                 for s in self.match.slots:
-                    if s.player is not None:
+                    # add double check to ensure match player
+                    if s.player is not None and s.player.match is not None:
                         self.match.host_id = s.player.id
                         self.match.host.enqueue(app.packets.match_transfer_host())
                         break
