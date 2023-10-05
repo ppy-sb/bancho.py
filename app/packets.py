@@ -649,7 +649,9 @@ def write_match(m: Match, send_pw: bool = True) -> bytearray:
             assert s.player is not None
             ret += s.player.id.to_bytes(4, "little")
 
-    ret += m.host.id.to_bytes(4, "little")
+    host_id = m.host.id if m.host is not None else -1
+
+    ret += host_id.to_bytes(4, "little", signed=True)
     ret.extend((m.mode, m.win_condition, m.team_type, m.freemods))
 
     if m.freemods:
