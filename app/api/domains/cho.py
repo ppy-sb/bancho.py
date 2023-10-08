@@ -637,23 +637,24 @@ async def login(
                     osu_client_stream += "40"  # TODO: why?
 
                 allowed_client_versions = set()
-
-                async with services.http_client.get(
+                
+                resp = await services.http_client.get(
                     OSU_API_V2_CHANGELOG_URL,
                     params={"stream": osu_client_stream},
-                ) as resp:
-                    for build in (await resp.json())["builds"]:
-                        version = date(
-                            int(build["version"][0:4]),
-                            int(build["version"][4:6]),
-                            int(build["version"][6:8]),
-                        )
-                        allowed_client_versions.add(version)
+                )
+                
+                for build in (resp.json())["builds"]:
+                    version = date(
+                        int(build["version"][0:4]),
+                        int(build["version"][4:6]),
+                        int(build["version"][6:8]),
+                    )
+                    allowed_client_versions.add(version)
 
-                        if any(entry["major"] for entry in build["changelog_entries"]):
-                            # this build is a major iteration to the client
-                            # don't allow anything older than this
-                            break
+                    if any(entry["major"] for entry in build["changelog_entries"]):
+                        # this build is a major iteration to the client
+                        # don't allow anything older than this
+                        break
 
                 if osu_version.date not in allowed_client_versions:
                     return {
