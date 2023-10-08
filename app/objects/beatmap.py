@@ -98,7 +98,7 @@ async def ensure_local_osu_file(
             stacktrace = app.utils.get_appropriate_stacktrace()
             await app.state.services.log_strange_occurrence(stacktrace)
         return False
-    b_beatmap = await resp.read()
+    b_beatmap = resp.read()
     bytes_md5 = hashlib.md5(b_beatmap).hexdigest()
     if (bytes_md5 in KNOWN_BAD_FILES_MD5): 
         return False
