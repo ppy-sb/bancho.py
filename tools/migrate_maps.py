@@ -6,6 +6,7 @@ import sys
 from typing import Sequence
 import aiohttp
 import databases
+import httpx
 import orjson
 from tenacity import retry, stop_after_attempt
 
@@ -23,9 +24,7 @@ dev_database = databases.Database("mysql://ppysb:@localhost:3306/banchopy_prod")
 
 async def prepare_ctx():
     state.loop = asyncio.get_running_loop()
-    state.services.http_client = aiohttp.ClientSession(
-        json_serialize=lambda x: orjson.dumps(x).decode(),
-    )
+    state.services.http_client = httpx.AsyncClient()
     
     await state.services.database.connect()
     await state.services.create_db_and_tables()
@@ -103,7 +102,7 @@ async def main(argv: Sequence[str] | None = None):
     except IndexError:
         logging.log("Mission Complete!", logging.Ansi.LBLUE)
         
-    await state.services.http_client.close()
+    await state.services.http_client.aclose()
     await state.services.database.disconnect()
     await prod_database.disconnect()
     await dev_database.disconnect()
