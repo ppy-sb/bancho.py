@@ -1,8 +1,27 @@
+build:
+	if [ -d ".dbdata" ]; then sudo chmod -R 755 .dbdata; fi
+	docker build -t bancho:latest .
+
+run:
+	docker-compose up bancho mysql redis
+
+run-bg:
+	docker-compose up -d bancho mysql redis
+
+run-caddy:
+	caddy run --envfile .env --config ext/Caddyfile
+
+logs:
+	docker-compose logs -f bancho mysql redis
+
 shell:
 	pipenv shell
 
 test:
-	pipenv run pytest
+	pipenv run pytest -vv tests/
+
+test-dbg:
+	pipenv run pytest -vv --pdb tests/
 
 lint:
 	pipenv run pre-commit run --all-files
@@ -22,12 +41,9 @@ uninstall:
 
 update: # THIS WILL NOT RUN ON WINDOWS DUE TO UVLOOP; USE WSL
 	pipenv update --dev
-	# make test ; disabled as it fails for now
+	make test
 	pipenv requirements > requirements.txt
 	pipenv requirements --dev > requirements-dev.txt
 
 clean:
 	pipenv clean
-
-run:
-	pipenv run ./scripts/start_server.sh

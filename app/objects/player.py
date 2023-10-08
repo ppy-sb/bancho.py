@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from dataclasses import dataclass
@@ -32,10 +33,6 @@ from app.objects.match import MatchTeams
 from app.objects.match import MatchTeamTypes
 from app.objects.match import Slot
 from app.objects.match import SlotStatus
-from app.objects.menu import Menu
-from app.objects.menu import menu_keygen
-from app.objects.menu import MenuCommands
-from app.objects.menu import MenuFunction
 from app.objects.score import Grade
 from app.objects.score import Score
 from app.repositories import logs as logs_repo
@@ -112,33 +109,6 @@ class Status:
     mods: Mods = Mods.NOMOD
     mode: GameMode = GameMode.VANILLA_OSU
     map_id: int = 0
-
-
-# temporary menu-related stuff
-async def bot_hello(player: Player) -> None:
-    player.send_bot(f"hello {player.name}!")
-
-
-async def notif_hello(player: Player) -> None:
-    player.enqueue(app.packets.notification(f"hello {player.name}!"))
-
-
-MENU2 = Menu(
-    "Second Menu",
-    {
-        menu_keygen(): (MenuCommands.Back, None),
-        menu_keygen(): (MenuCommands.Execute, MenuFunction("notif_hello", notif_hello)),
-    },
-)
-
-MAIN_MENU = Menu(
-    "Main Menu",
-    {
-        menu_keygen(): (MenuCommands.Execute, MenuFunction("bot_hello", bot_hello)),
-        menu_keygen(): (MenuCommands.Execute, MenuFunction("notif_hello", notif_hello)),
-        menu_keygen(): (MenuCommands.Advance, MENU2),
-    },
-)
 
 
 class LastNp(TypedDict):
@@ -281,8 +251,6 @@ class Player:
         self.clan: Clan | None = extras.get("clan")
         self.clan_priv: ClanPrivileges | None = extras.get("clan_priv")
 
-        self.achievements: set[Achievement] = set()
-
         self.geoloc: app.state.services.Geolocation = extras.get(
             "geoloc",
             {
@@ -315,10 +283,6 @@ class Player:
 
         # store the last beatmap /np'ed by the user.
         self.last_np: LastNp | None = None
-
-        # TODO: document
-        self.current_menu = MAIN_MENU
-        self.previous_menus: list[Menu] = []
 
         # subject to possible change in the future,
         # although if anything, bot accounts will
@@ -533,7 +497,7 @@ class Player:
         webhook_url = app.settings.DISCORD_AUDIT_LOG_WEBHOOK
         if webhook_url:
             webhook = Webhook(webhook_url, content=log_msg)
-            await webhook.post(app.state.services.http_client)
+            asyncio.create_task(webhook.post())
 
         # refresh their client state
         if self.is_online:
@@ -571,7 +535,7 @@ class Player:
         webhook_url = app.settings.DISCORD_AUDIT_LOG_WEBHOOK
         if webhook_url:
             webhook = Webhook(webhook_url, content=log_msg)
-            await webhook.post(app.state.services.http_client)
+            asyncio.create_task(webhook.post())
 
         if self.is_online:
             # log the user out if they're offline, this
@@ -962,15 +926,6 @@ class Player:
 
         log(f"{self} unblocked {player}.")
 
-    async def unlock_achievement(self, achievement: Achievement) -> None:
-        """Unlock `achievement` for `self`, storing in both cache & sql."""
-        await app.state.services.database.execute(
-            "INSERT INTO user_achievements (userid, achid) VALUES (:user_id, :ach_id)",
-            {"user_id": self.id, "ach_id": achievement.id},
-        )
-
-        self.achievements.add(achievement)
-
     async def relationships_from_sql(self, db_conn: databases.core.Connection) -> None:
         """Retrieve `self`'s relationships from sql."""
         for row in await db_conn.fetch_all(
@@ -984,18 +939,6 @@ class Player:
 
         # always have bot added to friends.
         self.friends.add(1)
-
-    async def achievements_from_sql(self, db_conn: databases.core.Connection) -> None:
-        """Retrieve `self`'s achievements from sql."""
-        for row in await db_conn.fetch_all(
-            "SELECT ua.achid id FROM user_achievements ua "
-            "INNER JOIN achievements a ON a.id = ua.achid "
-            "WHERE ua.userid = :user_id",
-            {"user_id": self.id},
-        ):
-            for ach in app.state.sessions.achievements:
-                if row["id"] == ach.id:
-                    self.achievements.add(ach)
 
     async def get_global_rank(self, mode: GameMode) -> int:
         if self.restricted:
@@ -1060,32 +1003,6 @@ class Player:
                     Grade.A: row["a_count"],
                 },
             )
-
-    def send_menu_clear(self) -> None:
-        """Clear the user's osu! chat with the bot
-        to make room for a new menu to be sent."""
-        # NOTE: the only issue with this is that it will
-        # wipe any messages the client can see from the bot
-        # (including any other channels). perhaps menus can
-        # be sent from a separate presence to prevent this?
-        self.enqueue(app.packets.user_silenced(app.state.sessions.bot.id))
-
-    def send_current_menu(self) -> None:
-        """Forward a standardized form of the user's
-        current menu to them via the osu! chat."""
-        msg = [self.current_menu.name]
-
-        for key, (cmd, data) in self.current_menu.options.items():
-            val = data.name if data else "Back"
-            msg.append(f"[osump://{key}/ {val}]")
-
-        chat_height = 10
-        lines_used = len(msg)
-        if lines_used < chat_height:
-            msg += [chr(8192)] * (chat_height - lines_used)
-
-        self.send_menu_clear()
-        self.send_bot("\n".join(msg))
 
     def update_latest_activity_soon(self) -> None:
         """Update the player's latest activity in the database."""

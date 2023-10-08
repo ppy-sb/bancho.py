@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Any
 from typing import TypeVar
 
-import aiohttp
 import databases
 from rosu_pp_py import Beatmap
 from rosu_pp_py import Calculator
@@ -297,8 +296,6 @@ async def main(argv: Sequence[str] | None = None) -> int:
     global DEBUG
     DEBUG = args.debug
 
-    app.state.services.http_client = aiohttp.ClientSession()
-
     db = databases.Database(app.settings.DB_DSN)
     await db.connect()
 
@@ -315,7 +312,7 @@ async def main(argv: Sequence[str] | None = None) -> int:
         if args.stats:
             await recalculate_mode_users(mode, ctx)
 
-    await app.state.services.http_client.close()
+    await app.state.services.http_client.aclose()
     await db.disconnect()
     await redis.close()
 

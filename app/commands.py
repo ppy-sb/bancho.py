@@ -9,7 +9,6 @@ import signal
 import time
 import traceback
 import uuid
-from collections import Counter
 from collections.abc import Awaitable
 from collections.abc import Callable
 from collections.abc import Mapping
@@ -25,9 +24,9 @@ from typing import NoReturn
 from typing import Optional
 from typing import TYPE_CHECKING
 from typing import TypedDict
-from typing import TypeVar
 from urllib.parse import urlparse
 
+import cpuinfo
 import psutil
 import timeago
 from pytimeparse.timeparse import timeparse
@@ -65,9 +64,6 @@ from app.utils import seconds_readable
 
 if TYPE_CHECKING:
     from app.objects.channel import Channel
-
-
-R = TypeVar("R")
 
 
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
@@ -843,12 +839,14 @@ async def user(ctx: Context) -> str | None:
         player = ctx.player
     else:
         # username given, fetch the player
-        player = await app.state.sessions.players.from_cache_or_sql(
+        maybe_player = await app.state.sessions.players.from_cache_or_sql(
             name=" ".join(ctx.args),
         )
 
-        if not player:
+        if maybe_player is None:
             return "Player not found."
+
+        player = maybe_player
 
     priv_list = [
         priv.name
@@ -861,7 +859,7 @@ async def user(ctx: Context) -> str | None:
         last_np = None
 
     if player.is_online and player.client_details is not None:
-        osu_version = player.client_details.osu_version.date
+        osu_version = player.client_details.osu_version.date.isoformat()
     else:
         osu_version = "Unknown"
 
@@ -1023,6 +1021,7 @@ async def shutdown(ctx: Context) -> str | None | NoReturn:
         return f"Enqueued {ctx.trigger}."
     else:  # shutdown immediately
         os.kill(os.getpid(), _signal)
+        return "Process killed"
 
 
 """ Developer commands
@@ -1179,14 +1178,6 @@ async def wipemap(ctx: Context) -> str | None:
     return "Scores wiped."
 
 
-@command(Privileges.DEVELOPER, hidden=True)
-async def menu(ctx: Context) -> str | None:
-    """Temporary command to illustrate the menu option idea."""
-    ctx.player.send_current_menu()
-
-    return None
-
-
 @command(Privileges.DEVELOPER, aliases=["re"])
 async def reload(ctx: Context) -> str | None:
     """Reload a python module."""
@@ -1200,11 +1191,12 @@ async def reload(ctx: Context) -> str | None:
     except ModuleNotFoundError:
         return "Module not found."
 
+    child = None
     try:
         for child in children:
             mod = getattr(mod, child)
     except AttributeError:
-        return f"Failed at {child}."  # type: ignore
+        return f"Failed at {child}."
 
     try:
         mod = importlib.reload(mod)
@@ -1225,18 +1217,13 @@ async def server(ctx: Context) -> str | None:
     uptime = int(time.time() - proc.create_time())
 
     # get info about our cpu
-    with open("/proc/cpuinfo") as f:
-        header = "model name\t: "
-        trailer = "\n"
-
-        model_names = Counter(
-            line[len(header) : -len(trailer)]
-            for line in f.readlines()
-            if line.startswith("model name")
-        )
+    cpu_info = cpuinfo.get_cpu_info()
 
     # list of all cpus installed with thread count
-    cpus_info = " | ".join(f"{v}x {k}" for k, v in model_names.most_common())
+    thread_count = cpu_info["count"]
+    cpu_name = cpu_info["brand_raw"]
+
+    cpu_info_str = f"{thread_count}x {cpu_name}"
 
     # get system-wide ram usage
     sys_ram = psutil.virtual_memory()
@@ -1262,7 +1249,7 @@ async def server(ctx: Context) -> str | None:
     requirements = []
 
     for dist in importlib.metadata.distributions():
-        requirements.append(f"{dist.name} v{dist.version}")  # type: ignore
+        requirements.append(f"{dist.name} v{dist.version}")
     requirements.sort(key=lambda x: x.casefold())
 
     requirements_info = "\n".join(
@@ -1273,7 +1260,7 @@ async def server(ctx: Context) -> str | None:
     return "\n".join(
         (
             f"{build_str} | uptime: {seconds_readable(uptime)}",
-            f"cpu(s): {cpus_info}",
+            f"cpu: {cpu_info_str}",
             f"ram: {ram_info}",
             f"search mirror: {mirror_search_url} | download mirror: {mirror_download_url}",
             f"osu!api connection: {using_osuapi}",
@@ -1339,7 +1326,7 @@ if app.settings.DEVELOPER_MODE:
         if not isinstance(ret, str):
             ret = pprint.pformat(ret, compact=True)
 
-        return ret
+        return str(ret)
 
 
 """ Multiplayer commands
@@ -1349,10 +1336,10 @@ if app.settings.DEVELOPER_MODE:
 
 
 def ensure_match(
-    f: Callable[[Context, Match], Awaitable[R | None]],
-) -> Callable[[Context], Awaitable[R | None]]:
+    f: Callable[[Context, Match], Awaitable[str | None]],
+) -> Callable[[Context], Awaitable[str | None]]:
     @wraps(f)
-    async def wrapper(ctx: Context) -> R | None:
+    async def wrapper(ctx: Context) -> str | None:
         match = ctx.player.match
 
         # multi set is a bit of a special case,
@@ -1365,11 +1352,11 @@ def ensure_match(
             # message not in match channel
             return None
 
-        if f is not mp_help and (
-            ctx.player not in match.refs
-            and not ctx.player.priv & Privileges.TOURNEY_MANAGER
+        if not (
+            ctx.player in match.refs
+            or ctx.player.priv & Privileges.TOURNEY_MANAGER
+            or f is mp_help.__wrapped__  # type: ignore[attr-defined]
         ):
-            # doesn't have privs to use !mp commands (allow help).
             return None
 
         return await f(ctx, match)
@@ -2094,13 +2081,12 @@ async def pool_create(ctx: Context) -> str | None:
     )
 
     # add to cache (get from sql for id & time)
-    row = await app.state.services.database.fetch_one(
+    rec = await app.state.services.database.fetch_one(
         "SELECT * FROM tourney_pools WHERE name = :name",
         {"name": name},
     )
-    assert row is not None
-
-    row = dict(row)  # make mutable copy
+    assert rec is not None
+    row = dict(rec._mapping)
 
     pool_creator = await app.state.sessions.players.from_cache_or_sql(
         id=row["created_by"],
@@ -2326,7 +2312,7 @@ async def clan_create(ctx: Context) -> str | None:
     created_at = datetime.now()
 
     # add clan to sql
-    clan = await clans_repo.create(
+    persisted_clan = await clans_repo.create(
         name=name,
         tag=tag,
         owner=ctx.player.id,
@@ -2334,7 +2320,7 @@ async def clan_create(ctx: Context) -> str | None:
 
     # add clan to cache
     clan = Clan(
-        id=clan["id"],
+        id=persisted_clan["id"],
         name=name,
         tag=tag,
         created_at=created_at,
@@ -2426,7 +2412,7 @@ async def clan_info(ctx: Context) -> str | None:
 
 
 @clan_commands.add(Privileges.UNRESTRICTED)
-async def clan_leave(ctx: Context):
+async def clan_leave(ctx: Context) -> str | None:
     """Leaves the clan you're in."""
     if not ctx.player.clan:
         return "You're not in a clan."

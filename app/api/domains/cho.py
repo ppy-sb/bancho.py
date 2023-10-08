@@ -48,9 +48,6 @@ from app.objects.match import MatchTeamTypes
 from app.objects.match import MatchWinConditions
 from app.objects.match import Slot
 from app.objects.match import SlotStatus
-from app.objects.menu import Menu
-from app.objects.menu import MenuCommands
-from app.objects.menu import MenuFunction
 from app.objects.player import Action
 from app.objects.player import ClientDetails
 from app.objects.player import OsuStream
@@ -86,7 +83,7 @@ router = APIRouter(tags=["Bancho API"])
 
 
 @router.get("/")
-async def bancho_http_handler():
+async def bancho_http_handler() -> Response:
     """Handle a request from a web browser."""
     new_line = "\n"
     matches = [m for m in app.state.sessions.matches if m is not None]
@@ -112,7 +109,7 @@ async def bancho_http_handler():
 
 
 @router.get("/online")
-async def bancho_view_online_users():
+async def bancho_view_online_users() -> Response:
     """see who's online"""
     new_line = "\n"
 
@@ -135,7 +132,7 @@ bots:
 
 
 @router.get("/matches")
-async def bancho_view_matches():
+async def bancho_view_matches() -> Response:
     """ongoing matches"""
     new_line = "\n"
 
@@ -176,7 +173,7 @@ async def bancho_handler(
     request: Request,
     osu_token: str | None = Header(None),
     user_agent: Literal["osu!"] = Header(...),
-):
+) -> Response:
     ip = app.state.services.ip_resolver.get_ip(request.headers)
 
     if osu_token is None:
@@ -572,6 +569,8 @@ async def login(
         running_under_wine = login_data["adapters_str"] == "runningunderwine"
         adapters = [a for a in login_data["adapters_str"][:-1].split(".")]
     if not bypass:
+        # perform some validation & further parsing on the data
+
         match = regexes.OSU_VERSION.match(login_data["osu_version"])
         if match is None:
             return {
@@ -596,68 +595,107 @@ async def login(
 
             allowed_client_versions = set()
 
-            async with services.http_client.get(
+            # TODO: put this behind a layer of abstraction
+            #       for better handling of the error cases
+            response = await services.http_client.get(
                 OSU_API_V2_CHANGELOG_URL,
                 params={"stream": osu_client_stream},
-            ) as resp:
-                for build in (await resp.json())["builds"]:
-                    version = date(
-                        int(build["version"][0:4]),
-                        int(build["version"][4:6]),
-                        int(build["version"][6:8]),
-                    )
-                    allowed_client_versions.add(version)
+            )
+            response.raise_for_status()
+            for build in response.json()["builds"]:
+                version = date(
+                    int(build["version"][0:4]),
+                    int(build["version"][4:6]),
+                    int(build["version"][6:8]),
+                )
+                allowed_client_versions.add(version)
 
-                    if any(entry["major"] for entry in build["changelog_entries"]):
-                        # this build is a major iteration to the client
-                        # don't allow anything older than this
-                        break
+                if any(entry["major"] for entry in build["changelog_entries"]):
+                    # this build is a major iteration to the client
+                    # don't allow anything older than this
+                    break
 
             if osu_version.date not in allowed_client_versions:
                 return {
-                    "osu_token": "client-too-old",
-                    "response_body": (
-                        app.packets.version_update() + app.packets.user_id(-2)
-                    ),
+                    "osu_token": "invalid-request",
+                    "response_body": b"",
                 }
 
-        running_under_wine = login_data["adapters_str"] == "runningunderwine"
-        adapters = [a for a in login_data["adapters_str"][:-1].split(".")]
-
-        if not (running_under_wine or any(adapters)):
-            return {
-                "osu_token": "empty-adapters",
-                "response_body": (
-                    app.packets.user_id(-1)
-                    + app.packets.notification("Please restart your osu! and try again.")
+            osu_version = OsuVersion(
+                date=date(
+                    year=int(match["date"][0:4]),
+                    month=int(match["date"][4:6]),
+                    day=int(match["date"][6:8]),
                 ),
-            }
+                revision=int(match["revision"]) if match["revision"] else None,
+                stream=OsuStream(match["stream"] or "stable"),
+            )
+
+            if app.settings.DISALLOW_OLD_CLIENTS:
+                osu_client_stream = osu_version.stream.value
+                if osu_client_stream in ("stable", "beta"):
+                    osu_client_stream += "40"  # TODO: why?
+
+                allowed_client_versions = set()
+
+                async with services.http_client.get(
+                    OSU_API_V2_CHANGELOG_URL,
+                    params={"stream": osu_client_stream},
+                ) as resp:
+                    for build in (await resp.json())["builds"]:
+                        version = date(
+                            int(build["version"][0:4]),
+                            int(build["version"][4:6]),
+                            int(build["version"][6:8]),
+                        )
+                        allowed_client_versions.add(version)
+
+                        if any(entry["major"] for entry in build["changelog_entries"]):
+                            # this build is a major iteration to the client
+                            # don't allow anything older than this
+                            break
+
+                if osu_version.date not in allowed_client_versions:
+                    return {
+                        "osu_token": "client-too-old",
+                        "response_body": (
+                            app.packets.version_update() + app.packets.user_id(-2)
+                        ),
+                    }
+
+            running_under_wine = login_data["adapters_str"] == "runningunderwine"
+            adapters = [a for a in login_data["adapters_str"][:-1].split(".")]
+
+            if not (running_under_wine or any(adapters)):
+                return {
+                    "osu_token": "empty-adapters",
+                    "response_body": (
+                        app.packets.user_id(-1)
+                        + app.packets.notification("Please restart your osu! and try again.")
+                    ),
+                }
 
     ## parsing successful
 
     login_time = time.time()
 
-    # TODO: improve tournament client support
+    # disallow multiple sessions from a single user
+    # with the exception of tourney spectator clients
     player = app.state.sessions.players.get(name=login_data["username"])
-    if player:
-        # player is already logged in - allow this only for tournament clients
-
-        if not (osu_version.stream == "tourney" or player.tourney_client):
-            # neither session is a tournament client, disallow
-
-            if (login_time - player.last_recv_time) > 10:
-                # let this session overrule the existing one
-                # (this is made to help prevent user ghosting)
-                player.logout()
-            else:
-                # current session is still active, disallow
-                return {
-                    "osu_token": "user-ghosted",
-                    "response_body": (
-                        app.packets.user_id(-1)
-                        + app.packets.notification("User already logged in.")
-                    ),
-                }
+    if player and osu_version.stream != "tourney":
+        # check if the existing session is still active
+        if (login_time - player.last_recv_time) < 10:
+            return {
+                "osu_token": "user-already-logged-in",
+                "response_body": (
+                    app.packets.user_id(-1)
+                    + app.packets.notification("User already logged in.")
+                ),
+            }
+        else:
+            # session is not active; replace it
+            player.logout()
+            del player
 
     user_info = await players_repo.fetch_one(
         name=login_data["username"],
@@ -892,7 +930,6 @@ async def login(
 
     # fetch some of the player's
     # information from sql to be cached.
-    await player.achievements_from_sql(db_conn)
     await player.stats_from_sql_full(db_conn)
     await player.relationships_from_sql(db_conn)
 
@@ -1384,36 +1421,6 @@ class MatchCreate(BasePacket):
         log(f"{player} created a new multiplayer match.")
 
 
-async def execute_menu_option(player: Player, key: int) -> None:
-    if key not in player.current_menu.options:
-        return
-
-    # this is one of their menu options, execute it.
-    cmd, data = player.current_menu.options[key]
-
-    if app.settings.DEBUG:
-        print(f"\x1b[0;95m{cmd!r}\x1b[0m {data}")
-
-    if cmd == MenuCommands.Reset:
-        # go back to the main menu
-        player.current_menu = player.previous_menus[0]
-        player.previous_menus.clear()
-    elif cmd == MenuCommands.Back:
-        # return one menu back
-        player.current_menu = player.previous_menus.pop()
-        player.send_current_menu()
-    elif cmd == MenuCommands.Advance:
-        # advance to a new menu
-        assert isinstance(data, Menu)
-        player.previous_menus.append(player.current_menu)
-        player.current_menu = data
-        player.send_current_menu()
-    elif cmd == MenuCommands.Execute:
-        # execute a function on the current menu
-        assert isinstance(data, MenuFunction)
-        await data.callback(player)
-
-
 @register(ClientPackets.JOIN_MATCH)
 class MatchJoin(BasePacket):
     def __init__(self, reader: BanchoPacketReader) -> None:
@@ -1421,16 +1428,6 @@ class MatchJoin(BasePacket):
         self.match_passwd = reader.read_string()
 
     async def handle(self, player: Player) -> None:
-        is_menu_request = self.match_id >= 64  # max multi matches
-
-        if is_menu_request or self.match_id < 0:
-            if is_menu_request:
-                # NOTE: this function is unrelated to mp.
-                await execute_menu_option(player, self.match_id)
-
-            player.enqueue(app.packets.match_join_fail())
-            return
-
         match = app.state.sessions.matches[self.match_id]
         if not match:
             log(f"{player} tried to join a non-existant mp lobby?")

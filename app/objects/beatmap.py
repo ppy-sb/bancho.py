@@ -13,7 +13,7 @@ from typing import Any
 from typing import cast
 from typing import TypedDict
 
-import aiohttp
+import httpx
 from tenacity import retry
 from tenacity.stop import stop_after_attempt
 
@@ -61,12 +61,12 @@ async def api_get_beatmaps(**params: Any) -> BeatmapApiResponse:
         # https://osu.direct/doc
         url = "https://osu.direct/api/get_beatmaps"
 
-    async with app.state.services.http_client.get(url, params=params) as response:
-        response_data = await response.json()
-        if response.status == 200 and response_data:  # (data may be [])
-            return {"data": response_data, "status_code": response.status}
+    response = await app.state.services.http_client.get(url, params=params)
+    response_data = response.json()
+    if response.status_code == 200 and response_data:  # (data may be [])
+        return {"data": response_data, "status_code": response.status_code}
 
-    return {"data": None, "status_code": response.status}
+    return {"data": None, "status_code": response.status_code}
 
 
 KNOWN_BAD_FILES_MD5 = [
@@ -600,35 +600,18 @@ class BeatmapSet:
         """The online url for this beatmap set."""
         return f"https://osu.{app.settings.DOMAIN}/beatmapsets/{self.id}"
 
-    def all_officially_ranked_or_approved_or_frozen(self) -> bool:
-        """Whether all the maps in the set are
-        ranked or approved on official servers."""
-        return all(
-            # ranked status has been edited on bancho.py
-            bmap.frozen or
-            # ranked status is ranked or approved on bancho
-            bmap.status in (RankedStatus.Ranked, RankedStatus.Approved)
-            for bmap in self.maps
+    def any_beatmaps_have_official_leaderboards(self) -> bool:
+        """Whether all the maps in the set have leaderboards on official servers."""
+        leaderboard_having_statuses = (
+            RankedStatus.Loved,
+            RankedStatus.Ranked,
+            RankedStatus.Approved,
         )
-
-    def all_officially_loved_or_frozen(self) -> bool:
-        """Whether all the maps in the set are
-        loved on official servers."""
-        return all(
-            # ranked status has been edited on bancho.py
-            bmap.frozen or
-            # ranked status is loved on bancho
-            bmap.status == RankedStatus.Loved
-            for bmap in self.maps
-        )
+        return any(bmap.status in leaderboard_having_statuses for bmap in self.maps)
 
     def _cache_expired(self) -> bool:
         """Whether the cached version of the set is
         expired and needs an update from the osu!api."""
-        # ranked & approved maps are update-locked.
-        if self.all_officially_ranked_or_approved_or_frozen():
-            return False
-
         current_datetime = datetime.now()
 
         # the delta between cache invalidations will increase depending
@@ -640,14 +623,14 @@ class BeatmapSet:
         # the formula for this is subject to adjustment in the future.
         check_delta = timedelta(hours=2 + ((5 / 365) * update_delta.days))
 
-        # we'll consider it much less likely for a loved map to be updated;
-        # it's possible but the mapper will remove their leaderboard doing so.
-        if self.all_officially_loved_or_frozen():
-            # TODO: it's still possible for this to happen and the delta can span
-            # over multiple days quite easily here, there should be a command to
-            # force a cache invalidation on the set. (normal privs if spam protected)
+        # it's much less likely that a beatmapset who has beatmaps with
+        # leaderboards on official servers will be updated.
+        if self.any_beatmaps_have_official_leaderboards():
             check_delta *= 4
             
+        # we'll cache for an absolute maximum of 1 day.
+        check_delta = min(check_delta, timedelta(days=1))
+
         # we'll cache for an absolute maximum of 1 day.
         check_delta = min(check_delta, timedelta(days=1))
 
@@ -659,10 +642,10 @@ class BeatmapSet:
 
         try:
             api_data = await api_get_beatmaps(s=self.id)
-        except (aiohttp.ClientConnectorError, aiohttp.ContentTypeError):
-            # NOTE: ClientConnectorError is directly caused by the API being unavailable
+        except (httpx.TransportError, httpx.DecodingError):
+            # NOTE: TransportError is directly caused by the API being unavailable
 
-            # NOTE: ContentTypeError is caused by the API returning HTML and
+            # NOTE: DecodingError is caused by the API returning HTML and
             #       normally happens when CF protection is enabled while
             #       osu! recovers from a DDOS attack
 

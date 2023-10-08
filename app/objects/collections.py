@@ -109,7 +109,8 @@ class Matches(list[Match | None]):
     """The currently active multiplayer matches on the server."""
 
     def __init__(self) -> None:
-        super().__init__([None] * app.settings.MAX_MATCHES)
+        MAX_MATCHES = 64  # TODO: refactor this out of existence
+        super().__init__([None] * MAX_MATCHES)
 
     def __iter__(self) -> Iterator[Match | None]:
         return super().__iter__()
@@ -470,20 +471,6 @@ async def initialize_ram_caches(db_conn: databases.core.Connection) -> None:
         bot_client=True,
     )
     app.state.sessions.players.append(app.state.sessions.bot)
-
-    # global achievements (sorted by vn gamemodes)
-    for row in await achievements_repo.fetch_many():
-        achievement = Achievement(
-            id=row["id"],
-            file=row["file"],
-            name=row["name"],
-            desc=row["desc"],
-            # NOTE: achievement conditions are stored as stringified python
-            # expressions in the database to allow for extensive customizability.
-            cond=eval(f'lambda score, mode_vn: {row["cond"]}'),
-        )
-
-        app.state.sessions.achievements.append(achievement)
 
     # static api keys
     app.state.sessions.api_keys = {
