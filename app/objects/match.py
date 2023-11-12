@@ -257,11 +257,10 @@ class Match:
 
         self.tourney_clients: set[int] = set()  # player ids
 
+    # TODO: handle user not found in session situation.
     @property  # TODO: test cache speed
     def host(self) -> Player:
-        player = app.state.sessions.players.get(id=self.host_id)
-        assert player is not None
-        return player
+        return app.state.sessions.players.get(id=self.host_id) or app.state.sessions.bot
 
     @property
     def url(self) -> str:

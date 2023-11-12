@@ -685,10 +685,12 @@ class Player:
                 # player was host, trasnfer to first occupied slot
                 for s in self.match.slots:
                     # add double check to ensure match player
-                    if s.player is not None and s.player.match is not None:
-                        self.match.host_id = s.player.id
-                        self.match.host.enqueue(app.packets.match_transfer_host())
-                        break
+                    if s.player is None or s.player.match is None:
+                        continue
+
+                    self.match.host_id = s.player.id
+                    self.match.host.enqueue(app.packets.match_transfer_host())
+                    break
 
             if self in self.match._refs:
                 self.match._refs.remove(self)
