@@ -87,7 +87,7 @@ async def fetch_count(
         WHERE COALESCE(from_id = :from_id, :from_id IS NULL)
           AND COALESCE(to_id = :to_id, :to_id IS NULL)
           AND COALESCE(time = :time, :time IS NULL)
-          AND `read` = COALESCE(:read, read)
+          AND COALESCE(`read` = :read, :read IS NULL)
     """
     params = {
         "from_id": from_id,
