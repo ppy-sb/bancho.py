@@ -91,8 +91,8 @@ async def fetch_one(
     query = f"""\
         SELECT {READ_PARAMS}
           FROM channels
-         WHERE id = COALESCE(:id, id)
-           AND name = COALESCE(:name, name)
+         WHERE COALESCE(id = :id, :id IS NULL)
+           AND COALESCE(name = :name, :name IS NULL)
     """
     params: dict[str, Any] = {
         "id": id,
@@ -114,9 +114,9 @@ async def fetch_count(
     query = """\
         SELECT COUNT(*) AS count
           FROM channels
-         WHERE read_priv = COALESCE(:read_priv, read_priv)
-           AND write_priv = COALESCE(:write_priv, write_priv)
-           AND auto_join = COALESCE(:auto_join, auto_join)
+         WHERE COALESCE(read_priv = :read_priv, :read_priv IS NULL)
+           AND COALESCE(write_priv = :write_priv, :write_priv IS NULL)
+           AND COALESCE(auto_join = :auto_join, :auto_join IS NULL)
     """
     params: dict[str, Any] = {
         "read_priv": read_priv,
@@ -140,9 +140,9 @@ async def fetch_many(
     query = f"""\
         SELECT {READ_PARAMS}
           FROM channels
-         WHERE read_priv = COALESCE(:read_priv, read_priv)
-           AND write_priv = COALESCE(:write_priv, write_priv)
-           AND auto_join = COALESCE(:auto_join, auto_join)
+         WHERE COALESCE(read_priv = :read_priv, :read_priv IS NULL)
+           AND COALESCE(write_priv = :write_priv, :write_priv IS NULL)
+           AND COALESCE(auto_join = :auto_join, :auto_join IS NULL)
     """
     params: dict[str, Any] = {
         "read_priv": read_priv,

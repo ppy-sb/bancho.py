@@ -186,9 +186,9 @@ async def fetch_one(
     query = f"""\
         SELECT {READ_PARAMS}
           FROM maps
-         WHERE id = COALESCE(:id, id)
-           AND md5 = COALESCE(:md5, md5)
-           AND filename = COALESCE(:filename, filename)
+         WHERE COALESCE(id = :id, :id IS NULL)
+           AND COALESCE(md5 = :md5, :md5 IS NULL)
+           AND COALESCE(filename = :filename, :filename IS NULL)
     """
     params: dict[str, Any] = {
         "id": id,
@@ -214,14 +214,14 @@ async def fetch_count(
     query = """\
         SELECT COUNT(*) AS count
           FROM maps
-        WHERE server = COALESCE(:server, server)
-          AND set_id = COALESCE(:set_id, set_id)
-          AND status = COALESCE(:status, status)
-          AND artist = COALESCE(:artist, artist)
-          AND creator = COALESCE(:creator, creator)
-          AND filename = COALESCE(:filename, filename)
-          AND mode = COALESCE(:mode, mode)
-          AND frozen = COALESCE(:frozen, frozen)
+        WHERE COALESCE(server = :server, :server IS NULL)
+          AND COALESCE(set_id = :set_id, :set_id IS NULL)
+          AND COALESCE(status = :status, :status IS NULL)
+          AND COALESCE(artist = :artist, :artist IS NULL)
+          AND COALESCE(creator = :creator, :creator IS NULL)
+          AND COALESCE(filename = :filename, :filename IS NULL)
+          AND COALESCE(mode = :mode, :mode IS NULL)
+          AND COALESCE(frozen = :frozen, :frozen IS NULL)
 
     """
     params: dict[str, Any] = {
@@ -255,14 +255,14 @@ async def fetch_many(
     query = f"""\
         SELECT {READ_PARAMS}
           FROM maps
-         WHERE server = COALESCE(:server, server)
-           AND set_id = COALESCE(:set_id, set_id)
-           AND status = COALESCE(:status, status)
-           AND artist = COALESCE(:artist, artist)
-           AND creator = COALESCE(:creator, creator)
-           AND filename = COALESCE(:filename, filename)
-           AND mode = COALESCE(:mode, mode)
-           AND frozen = COALESCE(:frozen, frozen)
+         WHERE COALESCE(server = :server, :server IS NULL)
+           AND COALESCE(set_id = :set_id, :set_id IS NULL)
+           AND COALESCE(status = :status, :status IS NULL)
+           AND COALESCE(artist = :artist, :artist IS NULL)
+           AND COALESCE(creator = :creator, :creator IS NULL)
+           AND COALESCE(filename = :filename, :filename IS NULL)
+           AND COALESCE(mode = :mode, :mode IS NULL)
+           AND COALESCE(frozen = :frozen, :frozen IS NULL)
     """
     params: dict[str, Any] = {
         "server": server,

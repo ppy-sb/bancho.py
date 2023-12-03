@@ -59,10 +59,10 @@ async def fetch_one(
     query = f"""\
         SELECT {READ_PARAMS}
           FROM mail
-         WHERE from_id = COALESCE(:from_id, from_id)
-           AND to_id = COALESCE(:to_id, to_id)
-           AND time = COALESCE(:time, time)
-           AND read = COALESCE(:read, read)
+         WHERE COALESCE(from_id = :from_id, :from_id IS NULL)
+           AND COALESCE(to_id = :to_id, :to_id IS NULL)
+           AND COALESCE(time = :time, :time IS NULL)
+           AND COALESCE(read = :read, :read IS NULL)
     """
     params = {
         "from_id": from_id,
@@ -84,9 +84,9 @@ async def fetch_count(
     query = """\
         SELECT COUNT(*) AS count
           FROM mail
-        WHERE from_id = COALESCE(:from_id, from_id)
-          AND to_id = COALESCE(:to_id, to_id)
-          AND time = COALESCE(:time, time)
+        WHERE COALESCE(from_id = :from_id, :from_id IS NULL)
+          AND COALESCE(to_id = :to_id, :to_id IS NULL)
+          AND COALESCE(time = :time, :time IS NULL)
           AND `read` = COALESCE(:read, read)
     """
     params = {

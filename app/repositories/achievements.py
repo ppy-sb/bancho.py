@@ -92,8 +92,8 @@ async def fetch_one(
     query = f"""\
         SELECT {READ_PARAMS}
           FROM achievements
-         WHERE id = COALESCE(:id, id)
-            OR name = COALESCE(:name, name)
+         WHERE COALESCE(id = :id, :id IS NULL)
+            OR COALESCE(name = :name, :name IS NULL)
     """
     params: dict[str, Any] = {
         "id": id,

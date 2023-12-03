@@ -131,9 +131,9 @@ async def fetch_one(
     query = f"""\
         SELECT {'*' if fetch_all_fields else READ_PARAMS}
           FROM users
-         WHERE id = COALESCE(:id, id)
-           AND safe_name = COALESCE(:safe_name, safe_name)
-           AND email = COALESCE(:email, email)
+         WHERE COALESCE(id = :id, :id IS NULL)
+           AND COALESCE(safe_name = :safe_name, :safe_name IS NULL)
+           AND COALESCE(email = :email, :email IS NULL)
     """
     params: dict[str, Any] = {
         "id": id,
@@ -156,12 +156,12 @@ async def fetch_count(
     query = """\
         SELECT COUNT(*) AS count
           FROM users
-         WHERE priv = COALESCE(:priv, priv)
-           AND country = COALESCE(:country, country)
-           AND clan_id = COALESCE(:clan_id, clan_id)
-           AND clan_priv = COALESCE(:clan_priv, clan_priv)
-           AND preferred_mode = COALESCE(:preferred_mode, preferred_mode)
-           AND play_style = COALESCE(:play_style, play_style)
+         WHERE COALESCE(priv = :priv, :priv IS NULL)
+           AND COALESCE(country = :country, :country IS NULL)
+           AND COALESCE(clan_id = :clan_id, :clan_id IS NULL)
+           AND COALESCE(clan_priv = :clan_priv, :clan_priv IS NULL)
+           AND COALESCE(preferred_mode = :preferred_mode, :preferred_mode IS NULL)
+           AND COALESCE(play_style = :play_style, :play_style IS NULL)
     """
     params: dict[str, Any] = {
         "priv": priv,
@@ -190,12 +190,12 @@ async def fetch_many(
     query = f"""\
         SELECT {READ_PARAMS}
           FROM users
-         WHERE priv = COALESCE(:priv, priv)
-           AND country = COALESCE(:country, country)
-           AND clan_id = COALESCE(:clan_id, clan_id)
-           AND clan_priv = COALESCE(:clan_priv, clan_priv)
-           AND preferred_mode = COALESCE(:preferred_mode, preferred_mode)
-           AND play_style = COALESCE(:play_style, play_style)
+         WHERE COALESCE(priv = :priv, :priv IS NULL)
+           AND COALESCE(country = :country, :country IS NULL)
+           AND COALESCE(clan_id = :clan_id, :clan_id IS NULL)
+           AND COALESCE(clan_priv = :clan_priv, :clan_priv IS NULL)
+           AND COALESCE(preferred_mode = :preferred_mode, :preferred_mode IS NULL)
+           AND COALESCE(play_style = :play_style, :play_style IS NULL)
     """
     params: dict[str, Any] = {
         "priv": priv,

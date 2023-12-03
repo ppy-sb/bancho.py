@@ -85,10 +85,10 @@ async def fetch_one(
     query = f"""\
         SELECT {READ_PARAMS}
           FROM clans
-         WHERE id = COALESCE(:id, id)
-           AND name = COALESCE(:name, name)
-           AND tag = COALESCE(:tag, tag)
-           AND owner = COALESCE(:owner, owner)
+         WHERE COALESCE(id = :id, :id IS NULL)
+           AND COALESCE(name = :name, :name IS NULL)
+           AND COALESCE(tag = :tag, :tag IS NULL)
+           AND COALESCE(owner = :owner, :owner IS NULL)
     """
     params: dict[str, Any] = {"id": id, "name": name, "tag": tag, "owner": owner}
     clan = await app.state.services.database.fetch_one(query, params)

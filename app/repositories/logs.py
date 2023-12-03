@@ -73,10 +73,10 @@ async def fetch_one(
     query = f"""\
         SELECT {READ_PARAMS}
           FROM logs
-         WHERE id = COALESCE(:id, id)
-          AND from = COALESCE(:from, from)
-          AND to = COALESCE(:to, to)
-          AND action = COALESCE(:action, action)
+         WHERE COALESCE(id = :id, :id IS NULL)
+          AND COALESCE(from = :from, :from IS NULL)
+          AND COALESCE(to = :to, :to IS NULL)
+          AND COALESCE(action = :action, :action IS NULL)
     """
     params = {
         "id": id,
@@ -100,12 +100,12 @@ async def fetch_count(
     query = """\
         SELECT COUNT(*) AS count
           FROM logs
-        WHERE id = COALESCE(:id, id)
-          AND from = COALESCE(:from, from)
-          AND to = COALESCE(:to, to)
-          AND action = COALESCE(:action, action)
-          AND msg = COALESCE(:msg, msg)
-          AND time = COALESCE(:time, time)
+        WHERE COALESCE(id = :id, :id IS NULL)
+          AND COALESCE(from = :from, :from IS NULL)
+          AND COALESCE(to = :to, :to IS NULL)
+          AND COALESCE(action = :action, :action IS NULL)
+          AND COALESCE(msg = :msg, :msg IS NULL)
+          AND COALESCE(time = :time, :time IS NULL)
     """
     params = {
         "id": id,
@@ -134,12 +134,12 @@ async def fetch_many(
     query = f"""\
         SELECT {READ_PARAMS}
           FROM logs
-         WHERE id = COALESCE(:id, id)
-           AND from = COALESCE(:from, from)
-           AND to = COALESCE(:to, to)
-           AND action = COALESCE(:action, action)
-           AND msg = COALESCE(:msg, msg)
-           AND time = COALESCE(:time, time)
+         WHERE COALESCE(id = :id, :id IS NULL)
+           AND COALESCE(from = :from, :from IS NULL)
+           AND COALESCE(to = :to, :to IS NULL)
+           AND COALESCE(action = :action, :action IS NULL)
+           AND COALESCE(msg = :msg, :msg IS NULL)
+           AND COALESCE(time = :time, :time IS NULL)
     """
     params = {
         "id": id,
@@ -173,11 +173,11 @@ async def update(
     """Update a log entry in the database."""
     query = """\
         UPDATE logs
-           SET from = COALESCE(:from, from),
-               to = COALESCE(:to, to),
-               action = COALESCE(:action, action),
-               msg = COALESCE(:msg, msg),
-               time = COALESCE(:time, time)
+           SET COALESCE(from = :from, :from IS NULL),
+               COALESCE(to = :to, :to IS NULL),
+               COALESCE(action = :action, :action IS NULL),
+               COALESCE(msg = :msg, :msg IS NULL),
+               COALESCE(time = :time, :time IS NULL)
          WHERE id = :id
     """
     params = {

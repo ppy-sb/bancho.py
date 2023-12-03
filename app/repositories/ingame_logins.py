@@ -99,8 +99,8 @@ async def fetch_count(
     query = """\
         SELECT COUNT(*) AS count
           FROM ingame_logins
-        WHERE userid = COALESCE(:userid, userid)
-          AND ip = COALESCE(:ip, ip)
+        WHERE COALESCE(userid = :userid, :userid IS NULL)
+          AND COALESCE(ip = :ip, :ip IS NULL)
     """
     params: dict[str, Any] = {
         "userid": user_id,
@@ -123,10 +123,10 @@ async def fetch_many(
     query = f"""\
         SELECT {READ_PARAMS}
           FROM ingame_logins
-         WHERE userid = COALESCE(:userid, userid)
-           AND ip = COALESCE(:ip, ip)
-           AND osu_ver = COALESCE(:osu_ver, osu_ver)
-           AND osu_stream = COALESCE(:osu_stream, osu_stream)
+         WHERE COALESCE(userid = :userid, :userid IS NULL)
+           AND COALESCE(ip = :ip, :ip IS NULL)
+           AND COALESCE(osu_ver = :osu_ver, :osu_ver IS NULL)
+           AND COALESCE(osu_stream = :osu_stream, :osu_stream IS NULL)
     """
     params: dict[str, Any] = {
         "userid": user_id,

@@ -161,8 +161,8 @@ async def fetch_count(
     query = """\
         SELECT COUNT(*) AS count
           FROM stats
-         WHERE id = COALESCE(:id, id)
-           AND mode = COALESCE(:mode, mode)
+         WHERE COALESCE(id = :id, :id IS NULL)
+           AND COALESCE(mode = :mode, :mode IS NULL)
     """
     params: dict[str, Any] = {
         "id": player_id,
@@ -182,8 +182,8 @@ async def fetch_many(
     query = f"""\
         SELECT {READ_PARAMS}
           FROM stats
-         WHERE id = COALESCE(:id, id)
-           AND mode = COALESCE(:mode, mode)
+         WHERE COALESCE(id = :id, :id IS NULL)
+           AND COALESCE(mode = :mode, :mode IS NULL)
     """
     params: dict[str, Any] = {
         "id": player_id,
