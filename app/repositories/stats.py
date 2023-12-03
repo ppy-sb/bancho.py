@@ -253,7 +253,7 @@ async def update(
 
     query = f"""\
         UPDATE stats
-           SET {",".join(f"{k} = COALESCE(:{k}, {k})" for k in update_fields)}
+           SET {",".join(f"COALESCE({k} = :{k}, :{k} IS NULL)" for k in update_fields)}
          WHERE id = :id
            AND mode = :mode
     """

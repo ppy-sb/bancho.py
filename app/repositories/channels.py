@@ -182,7 +182,7 @@ async def update(
 
     query = f"""\
         UPDATE channels
-           SET {",".join(f"{k} = COALESCE(:{k}, {k})" for k in update_fields)}
+           SET {",".join(f"COALESCE({k} = :{k}, :{k} IS NULL)" for k in update_fields)}
          WHERE name = :name
     """
     values = {"name": name} | update_fields

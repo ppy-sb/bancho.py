@@ -275,7 +275,7 @@ async def update(
 
     query = f"""\
         UPDATE users
-           SET {",".join(f"{k} = COALESCE(:{k}, {k})" for k in update_fields)}
+           SET {",".join(f"COALESCE({k} = :{k}, :{k} IS NULL)" for k in update_fields)}
          WHERE id = :id
     """
     values = {"id": id} | update_fields
