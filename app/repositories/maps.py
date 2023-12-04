@@ -185,25 +185,19 @@ async def fetch_one(
 
     queries = [
         "SELECT {READ_PARAMS} FROM maps WHERE 1 = 1",
+        "AND id = :id" if id is not None else None,
+        "AND md5 = :md5" if md5 is not None else None,
+        "AND filename = :filename" if filename is not None else None,
     ]
-
-    if id is not None:
-        queries.append("AND id = :id")
-
-    if md5 is not None:
-        queries.append("AND md5 = :md5")
-
-    if filename is not None:
-        queries.append("AND filename = :filename")
-
-    queries.append(";")
 
     params: dict[str, Any] = {
         "id": id,
         "md5": md5,
         "filename": filename,
     }
-    map = await app.state.services.database.fetch_one(" ".join(queries), params)
+    map = await app.state.services.database.fetch_one(
+        " ".join(q for q in queries if q is not None), params
+    )
 
     return cast(Map, dict(map._mapping)) if map is not None else None
 
