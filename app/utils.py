@@ -430,3 +430,10 @@ def has_png_headers_and_trailers(data_view: memoryview) -> bool:
         data_view[:8] == b"\x89PNG\r\n\x1a\n"
         and data_view[-8:] == b"\x49END\xae\x42\x60\x82"
     )
+
+
+def remove_none_values(input_dict: dict[str, T | None]) -> dict[str, T]:
+    filtered_dict = {
+        key: value for key, value in input_dict.items() if value is not None
+    }
+    return filtered_dict

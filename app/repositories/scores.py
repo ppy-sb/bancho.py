@@ -9,6 +9,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
+from app.utils import remove_none_values
 
 # +-----------------+-----------------+------+-----+---------+----------------+
 # | Field           | Type            | Null | Key | Default | Extra          |
@@ -239,7 +240,7 @@ async def fetch_many(
     }
 
     recs = await app.state.services.database.fetch_all(
-        " ".join(q for q in queries if q is not None), params
+        " ".join(q for q in queries if q is not None), remove_none_values(params)
     )
     return cast(list[Score], [dict(r._mapping) for r in recs])
 

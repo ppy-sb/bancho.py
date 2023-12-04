@@ -9,6 +9,8 @@ import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
 
+from app.utils import remove_none_values
+
 # +--------------+------------------------+------+-----+---------+-------+
 # | Field        | Type                   | Null | Key | Default | Extra |
 # +--------------+------------------------+------+-----+---------+-------+
@@ -196,7 +198,7 @@ async def fetch_one(
         "filename": filename,
     }
     map = await app.state.services.database.fetch_one(
-        " ".join(q for q in queries if q is not None), params
+        " ".join(q for q in queries if q is not None), remove_none_values(params)
     )
 
     return cast(Map, dict(map._mapping)) if map is not None else None
