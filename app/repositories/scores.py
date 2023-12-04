@@ -213,31 +213,34 @@ async def fetch_many(
     page: int | None = None,
     page_size: int | None = None,
 ) -> list[Score]:
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM scores
-         WHERE map_md5 = COALESCE(:map_md5, map_md5)
-           AND mods = COALESCE(:mods, mods)
-           AND status = COALESCE(:status, status)
-           AND mode = COALESCE(:mode, mode)
-           AND userid = COALESCE(:userid, userid)
-    """
+    queries = [
+        "SELECT {READ_PARAMS} FROM scores WHERE 1 = 1",
+        "AND map_md5 = :map_md5" if map_md5 is not None else None,
+        "AND mods = :mods" if mods is not None else None,
+        "AND status = :status" if status is not None else None,
+        "AND mode = :mode" if mode is not None else None,
+        "AND userid = :userid" if user_id is not None else None,
+        """\
+            LIMIT :page_size
+           OFFSET :offset
+        """
+        if page is not None and page_size is not None
+        else None,
+    ]
+
     params: dict[str, Any] = {
         "map_md5": map_md5,
         "mods": mods,
         "status": status,
         "mode": mode,
         "userid": user_id,
+        "page_size": page_size,
+        "offset": (page - 1) * page_size,
     }
-    if page is not None and page_size is not None:
-        query += """\
-            LIMIT :page_size
-           OFFSET :offset
-        """
-        params["page_size"] = page_size
-        params["offset"] = (page - 1) * page_size
 
-    recs = await app.state.services.database.fetch_all(query, params)
+    recs = await app.state.services.database.fetch_all(
+        [q for q in queries if q is not None], params
+    )
     return cast(list[Score], [dict(r._mapping) for r in recs])
 
 
