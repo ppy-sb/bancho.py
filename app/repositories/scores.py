@@ -239,7 +239,7 @@ async def fetch_many(
     }
 
     recs = await app.state.services.database.fetch_all(
-        [q for q in queries if q is not None], params
+        "".join(q for q in queries if q is not None), params
     )
     return cast(list[Score], [dict(r._mapping) for r in recs])
 
