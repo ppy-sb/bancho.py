@@ -214,7 +214,7 @@ async def fetch_many(
     page_size: int | None = None,
 ) -> list[Score]:
     queries = [
-        "SELECT {READ_PARAMS} FROM scores WHERE 1 = 1",
+        f"SELECT {READ_PARAMS} FROM scores WHERE 1 = 1",
         "AND map_md5 = :map_md5" if map_md5 is not None else None,
         "AND mods = :mods" if mods is not None else None,
         "AND status = :status" if status is not None else None,

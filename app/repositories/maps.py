@@ -184,7 +184,7 @@ async def fetch_one(
         raise ValueError("Must provide at least one parameter.")
 
     queries = [
-        "SELECT {READ_PARAMS} FROM maps WHERE 1 = 1",
+        f"SELECT {READ_PARAMS} FROM maps WHERE 1 = 1",
         "AND id = :id" if id is not None else None,
         "AND md5 = :md5" if md5 is not None else None,
         "AND filename = :filename" if filename is not None else None,
