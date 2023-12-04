@@ -235,7 +235,7 @@ async def fetch_many(
         "mode": mode,
         "userid": user_id,
         "page_size": page_size,
-        "offset": (page - 1) * page_size,
+        "offset": (page - 1) * page_size if page is not None else None,
     }
 
     recs = await app.state.services.database.fetch_all(
