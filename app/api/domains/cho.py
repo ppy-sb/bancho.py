@@ -287,7 +287,7 @@ class ChangeAction(BasePacket):
             app.state.sessions.players.enqueue(app.packets.user_stats(player))
 
 
-IGNORED_CHANNELS = ["#highlight", "#userlog"]
+IGNORED_CHANNELS = ["#highlight", "#userlog", "#multiplayer"]
 
 
 @register(ClientPackets.SEND_PUBLIC_MESSAGE)
