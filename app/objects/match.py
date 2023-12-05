@@ -7,7 +7,7 @@ from datetime import datetime as datetime
 from datetime import timedelta as timedelta
 from enum import IntEnum
 from enum import unique
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from typing import TypedDict
 
 import databases.core
@@ -257,10 +257,19 @@ class Match:
 
         self.tourney_clients: set[int] = set()  # player ids
 
+    @property
+    def empty(self) -> bool:
+        return all(s.empty() for s in self.slots)
+
     # TODO: handle user not found in session situation.
     @property  # TODO: test cache speed
     def host(self) -> Player:
-        return app.state.sessions.players.get(id=self.host_id) or app.state.sessions.bot
+        player = app.state.sessions.players.get(id=self.host_id)
+        if not player:
+            player = self.find_next_host()
+        if not player:
+            player = app.state.sessions.bot
+        return player
 
     @property
     def url(self) -> str:
@@ -451,6 +460,38 @@ class Match:
 
         # all scores retrieved, update the match.
         return scores, didnt_submit
+    
+    def terminate(self):
+        log(f"Match {self} finished.")
+        if self.starting is not None:
+            self.starting["start"].cancel()
+            for alert in self.starting["alerts"]:
+                alert.cancel()
+            self.starting = None
+        app.state.sessions.matches.remove(self)
+        lobby = app.state.sessions.channels.get_by_name("#lobby")
+        if lobby:
+            lobby.enqueue(app.packets.dispose_match(self.id))
+        
+    
+    def find_next_host(self) -> Optional[Player]:
+        current_host_id = self.host_id
+        next_host = None
+        for slot in self.slots:
+            if slot.empty() or slot.player.id == current_host_id:
+                continue
+            next_host = slot.player
+            break
+        if not next_host:
+            # Normally, match is terminated rather than without next host.
+            log(f"An empty match was trying to find next host.")
+            self.terminate()
+            return
+        self.host_id = next_host.id
+        next_host.enqueue(app.packets.match_transfer_host())
+        self.enqueue_state() # boardcast to all players in the match
+        return next_host
+        
 
     async def update_matchpoints(self, was_playing: Sequence[Slot]) -> None:
         """\
