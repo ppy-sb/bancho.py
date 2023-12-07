@@ -8,6 +8,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
+from app.query_builder import build as bq, sql
 
 # +------------+--------------+------+-----+---------+----------------+
 # | Field      | Type         | Null | Key | Default | Extra          |
@@ -88,16 +89,13 @@ async def fetch_one(
     """Fetch a single channel."""
     if id is None and name is None:
         raise ValueError("Must provide at least one parameter.")
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM channels
-         WHERE id = COALESCE(:id, id)
-           AND name = COALESCE(:name, name)
-    """
-    params: dict[str, Any] = {
-        "id": id,
-        "name": name,
-    }
+
+    query, params = bq(
+        sql(f"SELECT {READ_PARAMS} FROM channels WHERE 1 = 1"),
+        (id, sql("AND id = :id")),
+        (name, sql("AND name = :name")),
+    )
+
     channel = await app.state.services.database.fetch_one(query, params)
 
     return cast(Channel, dict(channel._mapping)) if channel is not None else None
@@ -111,18 +109,12 @@ async def fetch_count(
     if read_priv is None and write_priv is None and auto_join is None:
         raise ValueError("Must provide at least one parameter.")
 
-    query = """\
-        SELECT COUNT(*) AS count
-          FROM channels
-         WHERE read_priv = COALESCE(:read_priv, read_priv)
-           AND write_priv = COALESCE(:write_priv, write_priv)
-           AND auto_join = COALESCE(:auto_join, auto_join)
-    """
-    params: dict[str, Any] = {
-        "read_priv": read_priv,
-        "write_priv": write_priv,
-        "auto_join": auto_join,
-    }
+    query, params = bq(
+        sql("SELECT COUNT(*) count FROM channels WHERE 1 = 1"),
+        (read_priv, sql("AND read_priv = :read_priv")),
+        (write_priv, sql("AND write_priv = :write_priv")),
+        (auto_join, sql("AND auto_join = :auto_join")),
+    )
 
     rec = await app.state.services.database.fetch_one(query, params)
     assert rec is not None
@@ -137,26 +129,19 @@ async def fetch_many(
     page_size: int | None = None,
 ) -> list[Channel]:
     """Fetch multiple channels from the database."""
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM channels
-         WHERE read_priv = COALESCE(:read_priv, read_priv)
-           AND write_priv = COALESCE(:write_priv, write_priv)
-           AND auto_join = COALESCE(:auto_join, auto_join)
-    """
-    params: dict[str, Any] = {
-        "read_priv": read_priv,
-        "write_priv": write_priv,
-        "auto_join": auto_join,
-    }
-
-    if page is not None and page_size is not None:
-        query += """\
-            LIMIT :limit
-           OFFSET :offset
-        """
-        params["limit"] = page_size
-        params["offset"] = (page - 1) * page_size
+    query, params = bq(
+        sql(f"SELECT {READ_PARAMS} FROM channels WHERE 1 = 1"),
+        (read_priv, sql("AND read_priv = :read_priv")),
+        (write_priv, sql("AND write_priv = :write_priv")),
+        (auto_join, sql("AND auto_join = :auto_join")),
+        (
+            (page_size, sql("LIMIT :page_size")),
+            lambda: (
+                (page - 1) * page_size if page is not None else None,
+                sql("OFFSET :offset"),
+            ),
+        ),
+    )
 
     channels = await app.state.services.database.fetch_all(query, params)
     return cast(list[Channel], [dict(c._mapping) for c in channels])
@@ -180,11 +165,12 @@ async def update(
     if not isinstance(auto_join, _UnsetSentinel):
         update_fields["auto_join"] = auto_join
 
-    query = f"""\
-        UPDATE channels
-           SET {",".join(f"{k} = COALESCE(:{k}, {k})" for k in update_fields)}
-         WHERE name = :name
-    """
+    query, _ = bq(
+        sql("UPDATE channels SET"),
+        sql(",".join(f"{k} = :{k}" for k in update_fields)),
+        sql("WHERE name = :name"),
+    )
+
     values = {"name": name} | update_fields
     await app.state.services.database.execute(query, values)
 

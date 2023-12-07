@@ -8,6 +8,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
+from app.query_builder import build as bq, sql
 
 # +--------------+-----------------+------+-----+---------+----------------+
 # | Field        | Type            | Null | Key | Default | Extra          |
@@ -158,16 +159,12 @@ async def fetch_count(
     player_id: int | None = None,
     mode: int | None = None,
 ) -> int:
-    query = """\
-        SELECT COUNT(*) AS count
-          FROM stats
-         WHERE id = COALESCE(:id, id)
-           AND mode = COALESCE(:mode, mode)
-    """
-    params: dict[str, Any] = {
-        "id": player_id,
-        "mode": mode,
-    }
+    query, params = bq(
+        sql("SELECT COUNT(*) count FROM stats WHERE 1 = 1"),
+        (player_id, sql("AND id = :id")),
+        (mode, sql("AND mode = :mode")),
+    )
+
     rec = await app.state.services.database.fetch_one(query, params)
     assert rec is not None
     return cast(int, rec._mapping["count"])
@@ -179,24 +176,18 @@ async def fetch_many(
     page: int | None = None,
     page_size: int | None = None,
 ) -> list[Stat]:
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM stats
-         WHERE id = COALESCE(:id, id)
-           AND mode = COALESCE(:mode, mode)
-    """
-    params: dict[str, Any] = {
-        "id": player_id,
-        "mode": mode,
-    }
-
-    if page is not None and page_size is not None:
-        query += """\
-            LIMIT :limit
-           OFFSET :offset
-        """
-        params["limit"] = page_size
-        params["offset"] = (page - 1) * page_size
+    query, params = bq(
+        sql(f"SELECT {READ_PARAMS} FROM stats WHERE 1 = 1"),
+        (player_id, sql("AND id = :id")),
+        (mode, sql("AND mode = :mode")),
+        (
+            (page_size, "LIMIT :page_size"),
+            lambda: (
+                (page - 1) * page_size if page is not None else None,
+                "OFFSET :offset",
+            ),
+        ),
+    )
 
     stats = await app.state.services.database.fetch_all(query, params)
     return cast(list[Stat], [dict(s._mapping) for s in stats])
@@ -251,12 +242,12 @@ async def update(
     if not isinstance(a_count, _UnsetSentinel):
         update_fields["a_count"] = a_count
 
-    query = f"""\
-        UPDATE stats
-           SET {",".join(f"{k} = COALESCE(:{k}, {k})" for k in update_fields)}
-         WHERE id = :id
-           AND mode = :mode
-    """
+    query, _ = bq(
+        sql("UPDATE stats SET"),
+        sql(",".join(f"{k} = :{k}" for k in update_fields)),
+        sql("WHERE id = :id"),
+        sql("AND mode = :mode"),
+    )
     values = {"id": player_id, "mode": mode} | update_fields
     await app.state.services.database.execute(query, values)
 

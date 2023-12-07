@@ -8,6 +8,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
+from app.query_builder import build as bq, sql
 
 # +--------------+------------------------+------+-----+---------+-------+
 # | Field        | Type                   | Null | Key | Default | Extra |
@@ -183,21 +184,15 @@ async def fetch_one(
     if id is None and md5 is None and filename is None:
         raise ValueError("Must provide at least one parameter.")
 
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM maps
-         WHERE id = COALESCE(:id, id)
-           AND md5 = COALESCE(:md5, md5)
-           AND filename = COALESCE(:filename, filename)
-    """
-    params: dict[str, Any] = {
-        "id": id,
-        "md5": md5,
-        "filename": filename,
-    }
-    map = await app.state.services.database.fetch_one(query, params)
+    query, params = bq(
+        sql(f"SELECT {READ_PARAMS} FROM maps WHERE 1 = 1"),
+        (id, sql("AND id = :id")),
+        (md5, sql("AND md5 = :md5")),
+        (filename, sql("AND filename = :filename")),
+    )
 
-    return cast(Map, dict(map._mapping)) if map is not None else None
+    result = await app.state.services.database.fetch_one(query, params)
+    return cast(Map, dict(result._mapping)) if result is not None else None
 
 
 async def fetch_count(
@@ -211,29 +206,19 @@ async def fetch_count(
     frozen: bool | None = None,
 ) -> int:
     """Fetch the number of maps in the database."""
-    query = """\
-        SELECT COUNT(*) AS count
-          FROM maps
-        WHERE server = COALESCE(:server, server)
-          AND set_id = COALESCE(:set_id, set_id)
-          AND status = COALESCE(:status, status)
-          AND artist = COALESCE(:artist, artist)
-          AND creator = COALESCE(:creator, creator)
-          AND filename = COALESCE(:filename, filename)
-          AND mode = COALESCE(:mode, mode)
-          AND frozen = COALESCE(:frozen, frozen)
 
-    """
-    params: dict[str, Any] = {
-        "server": server,
-        "set_id": set_id,
-        "status": status,
-        "artist": artist,
-        "creator": creator,
-        "filename": filename,
-        "mode": mode,
-        "frozen": frozen,
-    }
+    query, params = bq(
+        sql("SELECT COUNT(*) count FROM maps WHERE 1 = 1"),
+        (server, sql("AND server = :server")),
+        (set_id, sql("AND set_id = :set_id")),
+        (status, sql("AND status = :status")),
+        (artist, sql("AND artist = :artist")),
+        (creator, sql("AND creator = :creator")),
+        (filename, sql("AND filename = :filename")),
+        (mode, sql("AND mode = :mode")),
+        (frozen, sql("AND frozen = :frozen")),
+    )
+
     rec = await app.state.services.database.fetch_one(query, params)
     assert rec is not None
     return cast(int, rec._mapping["count"])
@@ -252,28 +237,18 @@ async def fetch_many(
     page_size: int | None = None,
 ) -> list[Map]:
     """Fetch a list of maps from the database."""
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM maps
-         WHERE server = COALESCE(:server, server)
-           AND set_id = COALESCE(:set_id, set_id)
-           AND status = COALESCE(:status, status)
-           AND artist = COALESCE(:artist, artist)
-           AND creator = COALESCE(:creator, creator)
-           AND filename = COALESCE(:filename, filename)
-           AND mode = COALESCE(:mode, mode)
-           AND frozen = COALESCE(:frozen, frozen)
-    """
-    params: dict[str, Any] = {
-        "server": server,
-        "set_id": set_id,
-        "status": status,
-        "artist": artist,
-        "creator": creator,
-        "filename": filename,
-        "mode": mode,
-        "frozen": frozen,
-    }
+
+    query, params = bq(
+        sql(f"SELECT {READ_PARAMS} FROM maps WHERE 1 = 1"),
+        (server, sql("AND server = :server")),
+        (set_id, sql("AND set_id = :set_id")),
+        (status, sql("AND status = :status")),
+        (artist, sql("AND artist = :artist")),
+        (creator, sql("AND creator = :creator")),
+        (filename, sql("AND filename = :filename")),
+        (mode, sql("AND mode = :mode")),
+        (frozen, sql("AND frozen = :frozen")),
+    )
 
     if page is not None and page_size is not None:
         query += """\
@@ -359,11 +334,12 @@ async def update(
     if not isinstance(diff, _UnsetSentinel):
         update_fields["diff"] = diff
 
-    query = f"""\
-        UPDATE maps
-           SET {",".join(f"{k} = COALESCE(:{k}, {k})" for k in update_fields)}
-         WHERE id = :id
-    """
+    query, _ = bq(
+        sql("UPDATE maps SET"),
+        sql(",".join(f"{k} = :{k}" for k in update_fields)),
+        sql("WHERE id = :id"),
+    )
+
     values = {"id": id} | update_fields
     await app.state.services.database.execute(query, values)
 

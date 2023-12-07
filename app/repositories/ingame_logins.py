@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any
 from typing import cast
 from typing import TypedDict
+from app.query_builder import build as bq, sql
 
 import app.state.services
 
@@ -96,16 +97,12 @@ async def fetch_count(
     ip: str | None = None,
 ) -> int:
     """Fetch the number of logins in the database."""
-    query = """\
-        SELECT COUNT(*) AS count
-          FROM ingame_logins
-        WHERE userid = COALESCE(:userid, userid)
-          AND ip = COALESCE(:ip, ip)
-    """
-    params: dict[str, Any] = {
-        "userid": user_id,
-        "ip": ip,
-    }
+    query, params = bq(
+        sql("SELECT COUNT(*) count FROM ingame_logins WHERE 1 = 1"),
+        (user_id, sql("AND userid = :userid")),
+        (ip, sql("AND ip = :ip")),
+    )
+
     rec = await app.state.services.database.fetch_one(query, params)
     assert rec is not None
     return cast(int, rec._mapping["count"])
@@ -120,28 +117,20 @@ async def fetch_many(
     page_size: int | None = None,
 ) -> list[IngameLogin]:
     """Fetch a list of logins from the database."""
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM ingame_logins
-         WHERE userid = COALESCE(:userid, userid)
-           AND ip = COALESCE(:ip, ip)
-           AND osu_ver = COALESCE(:osu_ver, osu_ver)
-           AND osu_stream = COALESCE(:osu_stream, osu_stream)
-    """
-    params: dict[str, Any] = {
-        "userid": user_id,
-        "ip": ip,
-        "osu_ver": osu_ver,
-        "osu_stream": osu_stream,
-    }
-
-    if page is not None and page_size is not None:
-        query += """\
-            LIMIT :limit
-           OFFSET :offset
-        """
-        params["limit"] = page_size
-        params["offset"] = (page - 1) * page_size
+    query, params = bq(
+        sql(f"SELECT {READ_PARAMS} FROM ingame_logins WHERE 1 = 1"),
+        (user_id, sql("AND userid = :userid")),
+        (ip, sql("AND ip = :ip")),
+        (osu_ver, sql("AND osu_ver = :osu_ver")),
+        (osu_stream, sql("AND osu_stream = :osu_stream")),
+        (
+            (page_size, sql("LIMIT :page_size")),
+            lambda: (
+                (page - 1) * page_size if page is not None else None,
+                sql("OFFSET :offset"),
+            ),
+        ),
+    )
 
     ingame_logins = await app.state.services.database.fetch_all(query, params)
     return cast(list[IngameLogin], ingame_logins)

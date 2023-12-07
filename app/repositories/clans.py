@@ -9,6 +9,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
+from app.query_builder import build as bq, sql
 
 # +------------+-------------+------+-----+---------+----------------+
 # | Field      | Type        | Null | Key | Default | Extra          |
@@ -82,15 +83,14 @@ async def fetch_one(
     if id is None and name is None and tag is None and owner is None:
         raise ValueError("Must provide at least one parameter.")
 
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM clans
-         WHERE id = COALESCE(:id, id)
-           AND name = COALESCE(:name, name)
-           AND tag = COALESCE(:tag, tag)
-           AND owner = COALESCE(:owner, owner)
-    """
-    params: dict[str, Any] = {"id": id, "name": name, "tag": tag, "owner": owner}
+    query, params = bq(
+        sql(f"SELECT {READ_PARAMS} FROM clans WHERE 1 = 1"),
+        (id, sql("AND id = :id")),
+        (name, sql("AND name = :name")),
+        (tag, sql("AND tag = :tag")),
+        (owner, sql("AND owner = :owner")),
+    )
+
     clan = await app.state.services.database.fetch_one(query, params)
 
     return cast(Clan, dict(clan._mapping)) if clan is not None else None
@@ -145,11 +145,12 @@ async def update(
     if not isinstance(owner, _UnsetSentinel):
         update_fields["owner"] = owner
 
-    query = f"""\
-        UPDATE clans
-           SET {",".join(f"{k} = :{k}" for k in update_fields)}
-         WHERE id = :id
-    """
+    query, _ = bq(
+        sql("UPDATE clans SET"),
+        sql(",".join(f"{k} = :{k}" for k in update_fields)),
+        sql("WHERE id = :id"),
+    )
+
     values = {"id": id} | update_fields
     await app.state.services.database.execute(query, values)
 

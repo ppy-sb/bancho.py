@@ -10,6 +10,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
+from app.query_builder import build as bq, sql
 
 if TYPE_CHECKING:
     from app.objects.score import Score
@@ -89,16 +90,12 @@ async def fetch_one(
     if id is None and name is None:
         raise ValueError("Must provide at least one parameter.")
 
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM achievements
-         WHERE id = COALESCE(:id, id)
-            OR name = COALESCE(:name, name)
-    """
-    params: dict[str, Any] = {
-        "id": id,
-        "name": name,
-    }
+    query, params = bq(
+        sql(f"SELECT {READ_PARAMS} FROM achievements WHERE 1 = 1"),
+        (id, sql("AND id = :id")),
+        (name, sql("AND name = :name")),
+    )
+
     rec = await app.state.services.database.fetch_one(query, params)
 
     if rec is None:
@@ -171,11 +168,12 @@ async def update(
     if not isinstance(cond, _UnsetSentinel):
         update_fields["cond"] = cond
 
-    query = f"""\
-        UPDATE achievements
-           SET {",".join(f"{k} = COALESCE(:{k}, {k})" for k in update_fields)}
-         WHERE id = :id
-    """
+    query, _ = bq(
+        sql("UPDATE achievements SET"),
+        sql(",".join(f"{k} = :{k}" for k in update_fields)),
+        sql("WHERE id = :id"),
+    )
+
     values = {"id": id} | update_fields
     await app.state.services.database.execute(query, values)
 

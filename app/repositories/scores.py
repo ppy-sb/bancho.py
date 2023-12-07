@@ -9,6 +9,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
+from app.query_builder import build as bq, sql
 
 # +-----------------+-----------------+------+-----+---------+----------------+
 # | Field           | Type            | Null | Key | Default | Extra          |
@@ -183,22 +184,14 @@ async def fetch_count(
     mode: int | None = None,
     user_id: int | None = None,
 ) -> int:
-    query = """\
-        SELECT COUNT(*) AS count
-          FROM scores
-         WHERE map_md5 = COALESCE(:map_md5, map_md5)
-           AND mods = COALESCE(:mods, mods)
-           AND status = COALESCE(:status, status)
-           AND mode = COALESCE(:mode, mode)
-           AND userid = COALESCE(:userid, userid)
-    """
-    params: dict[str, Any] = {
-        "map_md5": map_md5,
-        "mods": mods,
-        "status": status,
-        "mode": mode,
-        "userid": user_id,
-    }
+    query, params = bq(
+        sql("SELECT COUNT(*) count FROM scores WHERE 1 = 1"),
+        (map_md5, sql("AND map_md5 = :map_md5")),
+        (mods, sql("AND mods = :mods")),
+        (status, sql("AND status = :status")),
+        (mode, sql("AND mode = :mode")),
+        (user_id, sql("AND userid = :userid")),
+    )
     rec = await app.state.services.database.fetch_one(query, params)
     assert rec is not None
     return cast(int, rec._mapping["count"])
@@ -213,29 +206,21 @@ async def fetch_many(
     page: int | None = None,
     page_size: int | None = None,
 ) -> list[Score]:
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM scores
-         WHERE map_md5 = COALESCE(:map_md5, map_md5)
-           AND mods = COALESCE(:mods, mods)
-           AND status = COALESCE(:status, status)
-           AND mode = COALESCE(:mode, mode)
-           AND userid = COALESCE(:userid, userid)
-    """
-    params: dict[str, Any] = {
-        "map_md5": map_md5,
-        "mods": mods,
-        "status": status,
-        "mode": mode,
-        "userid": user_id,
-    }
-    if page is not None and page_size is not None:
-        query += """\
-            LIMIT :page_size
-           OFFSET :offset
-        """
-        params["page_size"] = page_size
-        params["offset"] = (page - 1) * page_size
+    query, params = bq(
+        sql(f"SELECT {READ_PARAMS} FROM scores WHERE 1 = 1"),
+        (map_md5, sql("AND map_md5 = :map_md5")),
+        (mods, sql("AND mods = :mods")),
+        (status, sql("AND status = :status")),
+        (mode, sql("AND mode = :mode")),
+        (user_id, sql("AND userid = :userid")),
+        (
+            (page_size, sql("LIMIT :page_size")),
+            lambda: (
+                (page - 1) * page_size if page is not None else None,
+                sql("OFFSET :offset"),
+            ),
+        ),
+    )
 
     recs = await app.state.services.database.fetch_all(query, params)
     return cast(list[Score], [dict(r._mapping) for r in recs])
@@ -253,11 +238,12 @@ async def update(
     if not isinstance(status, _UnsetSentinel):
         update_fields["status"] = status
 
-    query = f"""\
-        UPDATE scores
-           SET {",".join(f"{k} = COALESCE(:{k}, {k})" for k in update_fields)}
-         WHERE id = :id
-    """
+    query, _ = bq(
+        sql("UPDATE scores SET"),
+        sql(",".join(f"{k} = :{k}" for k in update_fields)),
+        sql("WHERE id = :id"),
+    )
+
     values = {"id": id} | update_fields
     await app.state.services.database.execute(query, values)
 

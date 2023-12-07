@@ -9,6 +9,7 @@ import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
 from app.utils import make_safe_name
+from app.query_builder import build as bq, sql
 
 # +-------------------+---------------+------+-----+---------+----------------+
 # | Field             | Type          | Null | Key | Default | Extra          |
@@ -128,18 +129,17 @@ async def fetch_one(
     if id is None and name is None and email is None:
         raise ValueError("Must provide at least one parameter.")
 
-    query = f"""\
-        SELECT {'*' if fetch_all_fields else READ_PARAMS}
-          FROM users
-         WHERE id = COALESCE(:id, id)
-           AND safe_name = COALESCE(:safe_name, safe_name)
-           AND email = COALESCE(:email, email)
-    """
-    params: dict[str, Any] = {
-        "id": id,
-        "safe_name": make_safe_name(name) if name is not None else None,
-        "email": email,
-    }
+    safe_name = make_safe_name(name) if name is not None else None
+
+    query, params = bq(
+        sql(
+            f"SELECT {'*' if fetch_all_fields else READ_PARAMS} FROM users WHERE 1 = 1"
+        ),
+        (id, sql("AND id = :id")),
+        (safe_name, sql("AND safe_name = :safe_name")),
+        (email, sql("AND email = :email")),
+    )
+
     player = await app.state.services.database.fetch_one(query, params)
     return cast(Player, dict(player._mapping)) if player is not None else None
 
@@ -153,24 +153,16 @@ async def fetch_count(
     play_style: int | None = None,
 ) -> int:
     """Fetch the number of players in the database."""
-    query = """\
-        SELECT COUNT(*) AS count
-          FROM users
-         WHERE priv = COALESCE(:priv, priv)
-           AND country = COALESCE(:country, country)
-           AND clan_id = COALESCE(:clan_id, clan_id)
-           AND clan_priv = COALESCE(:clan_priv, clan_priv)
-           AND preferred_mode = COALESCE(:preferred_mode, preferred_mode)
-           AND play_style = COALESCE(:play_style, play_style)
-    """
-    params: dict[str, Any] = {
-        "priv": priv,
-        "country": country,
-        "clan_id": clan_id,
-        "clan_priv": clan_priv,
-        "preferred_mode": preferred_mode,
-        "play_style": play_style,
-    }
+    query, params = bq(
+        sql("SELECT COUNT(*) AS count FROM users WHERE 1 = 1"),
+        (priv, sql("AND priv = :priv")),
+        (country, sql("AND country = :country")),
+        (clan_id, sql("AND clan_id = :clan_id")),
+        (clan_priv, sql("AND clan_priv = :clan_priv")),
+        (preferred_mode, sql("AND preferred_mode = :preferred_mode")),
+        (play_style, sql("AND play_style = :play_style")),
+    )
+
     rec = await app.state.services.database.fetch_one(query, params)
     assert rec is not None
     return cast(int, rec._mapping["count"])
@@ -187,32 +179,22 @@ async def fetch_many(
     page_size: int | None = None,
 ) -> list[Player]:
     """Fetch multiple players from the database."""
-    query = f"""\
-        SELECT {READ_PARAMS}
-          FROM users
-         WHERE priv = COALESCE(:priv, priv)
-           AND country = COALESCE(:country, country)
-           AND clan_id = COALESCE(:clan_id, clan_id)
-           AND clan_priv = COALESCE(:clan_priv, clan_priv)
-           AND preferred_mode = COALESCE(:preferred_mode, preferred_mode)
-           AND play_style = COALESCE(:play_style, play_style)
-    """
-    params: dict[str, Any] = {
-        "priv": priv,
-        "country": country,
-        "clan_id": clan_id,
-        "clan_priv": clan_priv,
-        "preferred_mode": preferred_mode,
-        "play_style": play_style,
-    }
-
-    if page is not None and page_size is not None:
-        query += """\
-            LIMIT :limit
-           OFFSET :offset
-        """
-        params["limit"] = page_size
-        params["offset"] = (page - 1) * page_size
+    query, params = bq(
+        sql(f"SELECT {READ_PARAMS} FROM users WHERE 1 = 1"),
+        (priv, sql("AND priv = :priv")),
+        (country, sql("AND country = :country")),
+        (clan_id, sql("AND clan_id = :clan_id")),
+        (clan_priv, sql("AND clan_priv = :clan_priv")),
+        (preferred_mode, sql("AND preferred_mode = :preferred_mode")),
+        (play_style, sql("AND play_style = :play_style")),
+        (
+            (page_size, "LIMIT :page_size"),
+            lambda: (
+                (page - 1) * page_size if page is not None else None,
+                "OFFSET :offset",
+            ),
+        ),
+    )
 
     players = await app.state.services.database.fetch_all(query, params)
     return cast(list[Player], [dict(p._mapping) for p in players])
@@ -232,10 +214,10 @@ async def update(
     clan_priv: int | _UnsetSentinel = UNSET,
     preferred_mode: int | _UnsetSentinel = UNSET,
     play_style: int | _UnsetSentinel = UNSET,
-    custom_badge_name: str | None | _UnsetSentinel = UNSET,
-    custom_badge_icon: str | None | _UnsetSentinel = UNSET,
-    userpage_content: str | None | _UnsetSentinel = UNSET,
-    api_key: str | None | _UnsetSentinel = UNSET,
+    custom_badge_name: str | _UnsetSentinel = UNSET,
+    custom_badge_icon: str | _UnsetSentinel = UNSET,
+    userpage_content: str | _UnsetSentinel = UNSET,
+    api_key: str | _UnsetSentinel = UNSET,
 ) -> Player | None:
     """Update a player in the database."""
     update_fields: PlayerUpdateFields = {}
@@ -273,11 +255,12 @@ async def update(
     if not isinstance(api_key, _UnsetSentinel):
         update_fields["api_key"] = api_key
 
-    query = f"""\
-        UPDATE users
-           SET {",".join(f"{k} = COALESCE(:{k}, {k})" for k in update_fields)}
-         WHERE id = :id
-    """
+    query, _ = bq(
+        sql("UPDATE users SET"),
+        sql(",".join(f"{k} = :{k}" for k in update_fields)),
+        sql("WHERE id = :id"),
+    )
+
     values = {"id": id} | update_fields
     await app.state.services.database.execute(query, values)
 

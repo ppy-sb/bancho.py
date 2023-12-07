@@ -21,6 +21,7 @@ import app.usecases.performance
 from app.constants import regexes
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
+from app.constants.privileges import Privileges
 from app.objects.beatmap import Beatmap
 from app.objects.beatmap import ensure_local_osu_file
 from app.objects.clan import Clan
@@ -29,6 +30,8 @@ from app.repositories import players as players_repo
 from app.repositories import scores as scores_repo
 from app.repositories import stats as stats_repo
 from app.usecases.performance import ScoreParams
+
+from app.query_builder import build as bq, sql
 
 AVATARS_PATH = SystemPath.cwd() / ".data/avatars"
 BEATMAPS_PATH = SystemPath.cwd() / ".data/osu"
@@ -194,19 +197,24 @@ async def api_calculate_pp(
     )
 
 
+VisibleUser = Privileges.UNRESTRICTED | Privileges.VERIFIED
+
+
 @router.get("/search_players")
 async def api_search_players(
     search: str | None = Query(None, alias="q", min=2, max=32),
 ) -> Response:
     """Search for users on the server by name."""
-    rows = await app.state.services.database.fetch_all(
-        "SELECT id, name "
-        "FROM users "
-        "WHERE name LIKE COALESCE(:name, name) "
-        "AND priv & 3 = 3 "
-        "ORDER BY id ASC",
-        {"name": f"%{search}%" if search is not None else None},
+
+    query, params = bq(
+        sql("SELECT id, name FROM users WHERE 1 = 1"),
+        (search, lambda: (f"%{search}%", sql("AND name LIKE :name"))),
+        sql(f"AND priv & {VisibleUser} = {VisibleUser}"),
+        sql("ORDER BY id ASC"),
+        sql("LIMIT 100"),
     )
+
+    rows = await app.state.services.database.fetch_all(query, params)
 
     return ORJSONResponse(
         {
@@ -679,7 +687,7 @@ async def api_get_map_scores(
         "WHERE s.map_md5 = :map_md5 "
         "AND s.mode = :mode "
         "AND s.status = 2 "
-        "AND u.priv & 1",
+        "AND u.priv & 1"
     ]
     params: dict[str, object] = {
         "map_md5": bmap.md5,
