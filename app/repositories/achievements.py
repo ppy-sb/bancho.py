@@ -10,7 +10,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
-from app.query_builder import build as bq, sql, equals_variable
+from app.query_builder import build as bq, sql, equals_variable, WHERE
 
 if TYPE_CHECKING:
     from app.objects.score import Score
@@ -171,7 +171,7 @@ async def update(
     query, _ = bq(
         sql("UPDATE achievements SET"),
         sql(",".join(f"{k} = :{k}" for k in update_fields)),
-        sql("WHERE id = :id"),
+        WHERE(equals_variable("id", "id")),
     )
 
     values = {"id": id} | update_fields

@@ -15,7 +15,7 @@ from app.query_builder import (
     AND,
     UPDATE,
     SET,
-    optional_param,
+    WHERE,
     table,
 )
 
@@ -255,7 +255,10 @@ async def update(
         UPDATE(
             table("stats"),
             SET(*(equals_variable(k, k) for k in update_fields)),
-            (sql("WHERE id = :id"), AND(equals_variable("mode", "mode"))),
+            WHERE(
+                equals_variable("id", "id"),
+                AND(equals_variable("mode", "mode")),
+            ),
         )
     )
     values = {"id": player_id, "mode": mode} | update_fields

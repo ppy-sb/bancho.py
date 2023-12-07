@@ -9,7 +9,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
-from app.query_builder import build as bq, sql, equals_variable, AND
+from app.query_builder import build as bq, sql, equals_variable, AND, WHERE
 
 # +------------+-------------+------+-----+---------+----------------+
 # | Field      | Type        | Null | Key | Default | Extra          |
@@ -148,7 +148,7 @@ async def update(
     query, _ = bq(
         sql("UPDATE clans SET"),
         sql(",".join(f"{k} = :{k}" for k in update_fields)),
-        sql("WHERE id = :id"),
+        WHERE(equals_variable("id", "id")),
     )
 
     values = {"id": id} | update_fields
