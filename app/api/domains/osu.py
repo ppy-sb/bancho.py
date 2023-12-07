@@ -54,8 +54,9 @@ from app.logging import log
 from app.objects import models
 from app.objects.beatmap import Beatmap
 from app.objects.beatmap import RankedStatus
-from app.objects.beatmap import ensure_osu_file_is_available
+from app.objects.player import OsuStream
 from app.objects.player import Player
+from app.objects.player import Privileges
 from app.objects.score import Grade
 from app.objects.score import Score
 from app.objects.score import SubmissionStatus
@@ -365,7 +366,7 @@ DIRECT_MAP_INFO_FMTSTR = (
 
 @router.get("/web/osu-search.php")
 async def osuSearchHandler(
-    player: Player = Depends(authenticate_player_session(Query, "u", "h")),
+    # player: Player = Depends(authenticate_player_session(Query, "u", "h")),
     ranked_status: int = Query(..., alias="r", ge=0, le=8),
     query: str = Query(..., alias="q"),
     mode: int = Query(..., alias="m", ge=-1, le=3),  # -1 for all
@@ -533,7 +534,7 @@ async def osuSubmitModularSelector(
     # through but ac'd if not found?
     # TODO: validate token format
     # TODO: save token in the database
-    token: str = Header(...),
+    token: str | None = Header(None),  # ppysb feature: none when using ppysb client
     # TODO: do ft & st contain pauses?
     exited_out: bool = Form(..., alias="x"),
     fail_time: int = Form(..., alias="ft"),
@@ -608,55 +609,57 @@ async def osuSubmitModularSelector(
     try:
         assert player.client_details is not None
 
-        if osu_version != f"{player.client_details.osu_version.date:%Y%m%d}":
-            raise ValueError("osu! version mismatch")
+        bypass_client_check = (
+            player.client_details.osu_version.stream == OsuStream.PPYSB
+        )  # ppysb feature
 
-        if client_hash_decoded != player.client_details.client_hash:
-            raise ValueError("client hash mismatch")
-        # assert unique ids (c1) are correct and match login params
-        if unique_id1_md5 != player.client_details.uninstall_md5:
-            raise ValueError(
-                f"unique_id1 mismatch ({unique_id1_md5} != {player.client_details.uninstall_md5})",
+        if not bypass_client_check:
+
+            if osu_version != f"{player.client_details.osu_version.date:%Y%m%d}":
+                raise ValueError("osu! version mismatch")
+
+            if client_hash_decoded != player.client_details.client_hash:
+                raise ValueError("client hash mismatch")
+            # assert unique ids (c1) are correct and match login params
+            if unique_id1_md5 != player.client_details.uninstall_md5:
+                raise ValueError(
+                    f"unique_id1 mismatch ({unique_id1_md5} != {player.client_details.uninstall_md5})",
+                )
+
+            if unique_id2_md5 != player.client_details.disk_signature_md5:
+                raise ValueError(
+                    f"unique_id2 mismatch ({unique_id2_md5} != {player.client_details.disk_signature_md5})",
+                )
+
+            # assert online checksums match
+            server_score_checksum = score.compute_online_checksum(
+                osu_version=osu_version,
+                osu_client_hash=client_hash_decoded,
+                storyboard_checksum=storyboard_md5 or "",
+            )
+            if score.client_checksum != server_score_checksum:
+                raise ValueError(
+                    f"online score checksum mismatch ({server_score_checksum} != {score.client_checksum})",
+                )
+
+            # assert beatmap hashes match
+            if bmap_md5 != updated_beatmap_hash:
+                raise ValueError(
+                    f"beatmap hash mismatch ({bmap_md5} != {updated_beatmap_hash})",
+                )
+
+    except (ValueError, AssertionError) as error:
+        if error.args.count == 1:
+            await player.restrict(
+                admin=app.state.sessions.bot,
+                reason=error.args[0],
             )
 
-        if unique_id2_md5 != player.client_details.disk_signature_md5:
-            raise ValueError(
-                f"unique_id2 mismatch ({unique_id2_md5} != {player.client_details.disk_signature_md5})",
-            )
+            # refresh their client state
+            if player.online:
+                player.logout()
 
-        # assert online checksums match
-        server_score_checksum = score.compute_online_checksum(
-            osu_version=osu_version,
-            osu_client_hash=client_hash_decoded,
-            storyboard_checksum=storyboard_md5 or "",
-        )
-        if score.client_checksum != server_score_checksum:
-            raise ValueError(
-                f"online score checksum mismatch ({server_score_checksum} != {score.client_checksum})",
-            )
-
-        # assert beatmap hashes match
-        if bmap_md5 != updated_beatmap_hash:
-            raise ValueError(
-                f"beatmap hash mismatch ({bmap_md5} != {updated_beatmap_hash})",
-            )
-
-    except (ValueError, AssertionError):
-        # NOTE: this is undergoing a temporary trial period,
-        # after which, it will be enabled & perform restrictions.
-        stacktrace = app.utils.get_appropriate_stacktrace()
-        await app.state.services.log_strange_occurrence(stacktrace)
-
-        # await player.restrict(
-        #     admin=app.state.sessions.bot,
-        #     reason="mismatching hashes on score submission",
-        # )
-
-        # refresh their client state
-        # if player.online:
-        #     player.logout()
-
-        # return b"error: ban"
+            return b"error: ban"
 
     # we should update their activity no matter
     # what the result of the score submission is.
@@ -1338,10 +1341,14 @@ async def getScores(
     if app.state.services.datadog:
         app.state.services.datadog.increment("bancho.leaderboards_served")  # type: ignore[no-untyped-call]
 
-    if bmap.status < RankedStatus.Ranked:
-        # only show leaderboards for ranked,
-        # approved, qualified, or loved maps.
-        return Response(f"{int(bmap.status)}|false".encode())
+    ### ppysb feature begin
+
+    # if bmap.status < RankedStatus.Ranked:
+    # only show leaderboards for ranked,
+    # approved, qualified, or loved maps.
+    # return f"{int(bmap.status)}|false".encode()
+
+    ### ppysb feature end
 
     # fetch scores & personal best
     # TODO: create a leaderboard cache
@@ -1369,14 +1376,22 @@ async def getScores(
 
     ## construct response for osu! client
 
+    ### ppysb feature begin
+
+    response_status = bmap.status
+    if bmap.status < RankedStatus.Ranked:
+        response_status = RankedStatus.Approved
+
     response_lines: list[str] = [
         # NOTE: fa stands for featured artist (for the ones that may not know)
         # {ranked_status}|{serv_has_osz2}|{bid}|{bsid}|{len(scores)}|{fa_track_id}|{fa_license_text}
-        f"{int(bmap.status)}|false|{bmap.id}|{bmap.set_id}|{len(score_rows)}|0|",
+        f"{int(response_status)}|false|{bmap.id}|{bmap.set_id}|{len(score_rows)}|0|",
         # {offset}\n{beatmap_name}\n{rating}
         # TODO: server side beatmap offsets
         f"0\n{bmap.full_name}\n{map_avg_rating}",
     ]
+
+    ### ppysb feature end
 
     if not score_rows:
         response_lines.extend(("", ""))  # no scores, no personal best
@@ -1603,8 +1618,29 @@ async def get_screenshot(
     )
 
 
+geo_cache: dict = {}
+
+
+async def get_osz_url(
+    headers: Mapping[str, str], beatmapset_id: str, no_video: bool
+) -> str:
+    ip_address = app.state.services.ip_resolver.get_ip(headers)
+    geo_country = geo_cache.get(ip_address)
+    if not geo_country:
+        geoloc = await app.state.services.fetch_geoloc(ip_address, headers)
+        if geoloc:
+            geo_country = geoloc["country"]["acronym"]
+            geo_cache[ip_address] = geo_country
+    if geo_country == "cn":
+        prefix = "novideo" if no_video else "full"
+        return f"https://dl.sayobot.cn/beatmaps/download/{prefix}/{beatmapset_id}"
+    query_str = f"{beatmapset_id}?n={int(not no_video)}"
+    return f"{app.settings.MIRROR_DOWNLOAD_ENDPOINT}/{query_str}"
+
+
 @router.get("/d/{map_set_id}")
 async def get_osz(
+    request: Request,
     map_set_id: str = Path(...),
 ) -> Response:
     """Handle a map download request (osu.ppy.sh/d/*)."""
@@ -1612,10 +1648,8 @@ async def get_osz(
     if no_video:
         map_set_id = map_set_id[:-1]
 
-    query_str = f"{map_set_id}?n={int(not no_video)}"
-
     return RedirectResponse(
-        url=f"{app.settings.MIRROR_DOWNLOAD_ENDPOINT}/{query_str}",
+        url=await get_osz_url(request.headers, map_set_id, no_video),
         status_code=status.HTTP_301_MOVED_PERMANENTLY,
     )
 

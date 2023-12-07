@@ -73,6 +73,8 @@ OSU_API_V2_CHANGELOG_URL = "https://osu.ppy.sh/api/v2/changelog"
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
 DISK_CHAT_LOG_FILE = ".data/logs/chat.log"
 
+PPYSB_CLIENT_VERSION = "b20210125.1 SB Edition.x01" # (ppysb feature)
+
 BASE_DOMAIN = app.settings.DOMAIN
 
 # TODO: dear god
@@ -647,45 +649,83 @@ async def handle_osu_login_request(
       -8: requires verification
       other: valid id, logged in
     """
+    
 
-    # parse login data
+    # parse login data (ppysb feature)
     login_data = parse_login_data(body)
+    bypass = login_data["osu_version"] == PPYSB_CLIENT_VERSION
 
-    # perform some validation & further parsing on the data
-
-    osu_version = parse_osu_version_string(login_data["osu_version"])
-    if osu_version is None:
-        return {
-            "osu_token": "invalid-request",
-            "response_body": (
-                app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
-                + app.packets.notification("Please restart your osu! and try again.")
+    # perform some validation & further parsing on the data (ppysb feature)
+    
+    if bypass:
+        osu_version = OsuVersion(
+            date=date(
+                year=2021,
+                month=1,
+                day=25,
             ),
-        }
-
-    if app.settings.DISALLOW_OLD_CLIENTS:
-        allowed_client_versions = await get_allowed_client_versions(
-            osu_version.stream,
+            revision=None,
+            stream=OsuStream("ppysb"),
         )
-        # in the case where the osu! api fails, we'll allow the client to connect
-        if (
-            allowed_client_versions is not None
-            and osu_version.date not in allowed_client_versions
-        ):
+    if not bypass:
+        match = regexes.OSU_VERSION.match(login_data["osu_version"])
+        if match is None:
             return {
-                "osu_token": "client-too-old",
-                "response_body": (
-                    app.packets.version_update()
-                    + app.packets.login_reply(LoginFailureReason.OLD_CLIENT)
-                ),
+                "osu_token": "invalid-request",
+                "response_body": b"",
             }
 
-    adapters, running_under_wine = parse_adapters_string(login_data["adapters_str"])
+        osu_version = OsuVersion(
+            date=date(
+                year=int(match["date"][0:4]),
+                month=int(match["date"][4:6]),
+                day=int(match["date"][6:8]),
+            ),
+            revision=int(match["revision"]) if match["revision"] else None,
+            stream=OsuStream(match["stream"] or "stable"),
+        )
+
+    if app.settings.DISALLOW_OLD_CLIENTS:
+        osu_client_stream = osu_version.stream.value
+        if osu_client_stream in ("stable", "beta"):
+            osu_client_stream += "40"  # TODO: why?
+
+        allowed_client_versions = set()
+
+        # TODO: put this behind a layer of abstraction
+        #       for better handling of the error cases
+        response = await services.http_client.get(
+            OSU_API_V2_CHANGELOG_URL,
+            params={"stream": osu_client_stream},
+        )
+        response.raise_for_status()
+        for build in response.json()["builds"]:
+            version = date(
+                int(build["version"][0:4]),
+                int(build["version"][4:6]),
+                int(build["version"][6:8]),
+            )
+            allowed_client_versions.add(version)
+
+            if any(entry["major"] for entry in build["changelog_entries"]):
+                # this build is a major iteration to the client
+                # don't allow anything older than this
+                break
+
+        if osu_version.date not in allowed_client_versions:
+            return {
+                "osu_token": "invalid-request",
+                "response_body": b"",
+            }
+
+    running_under_wine = login_data["adapters_str"] == "runningunderwine"
+    adapters = [a for a in login_data["adapters_str"][:-1].split(".")]
+
     if not (running_under_wine or any(adapters)):
         return {
             "osu_token": "empty-adapters",
             "response_body": (
-                app.packets.login_reply(LoginFailureReason.AUTHENTICATION_FAILED)
+                app.packets.user_id(-1)
                 + app.packets.notification("Please restart your osu! and try again.")
             ),
         }
@@ -943,10 +983,14 @@ async def handle_osu_login_request(
 
         # the player may have been sent mail while offline,
         # enqueue any messages from their respective authors.
-        mail_rows = await mail_repo.fetch_all_mail_to_user(
-            user_id=player.id,
-            read=False,
-        )
+        # mail_rows = await db_conn.fetch_all(
+        #     "SELECT m.`msg`, m.`time`, m.`from_id`, "
+        #     "(SELECT name FROM users WHERE id = m.`from_id`) AS `from`, "
+        #     "(SELECT name FROM users WHERE id = m.`to_id`) AS `to` "
+        #     "FROM `mail` m WHERE m.`to_id` = :to AND m.`read` = 0",
+        #     {"to": player.id},
+        # )
+        mail_rows = None
 
         sent_to: set[int] = set()
 
