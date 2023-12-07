@@ -63,7 +63,7 @@ def optional_param(value: Value, sql: SQLPart) -> OptionalSQL:
 
 
 def WHERE(*parts: SQLPart) -> SQLPart:
-    return (sql("WHERE"), *parts)
+    return (sql("WHERE"), parts)
 
 
 def UPDATE(table: SQLLiteral, update_set: BuiltSQL, cond: SQLPart) -> BuiltSQL:
