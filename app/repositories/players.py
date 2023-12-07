@@ -9,7 +9,7 @@ import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
 from app.utils import make_safe_name
-from app.query_builder import build as bq, sql, equals_variable
+from app.query_builder import build as bq, sql, equals_variable, AND
 
 # +-------------------+---------------+------+-----+---------+----------------+
 # | Field             | Type          | Null | Key | Default | Extra          |
@@ -135,9 +135,9 @@ async def fetch_one(
         sql(
             f"SELECT {'*' if fetch_all_fields else READ_PARAMS} FROM users WHERE 1 = 1"
         ),
-        (id, equals_variable("id", "id")),
-        (safe_name, equals_variable("safe_name", "safe_name")),
-        (email, equals_variable("email", "email")),
+        AND(id, equals_variable("id", "id")),
+        AND(safe_name, equals_variable("safe_name", "safe_name")),
+        AND(email, equals_variable("email", "email")),
     )
 
     player = await app.state.services.database.fetch_one(query, params)
@@ -155,12 +155,12 @@ async def fetch_count(
     """Fetch the number of players in the database."""
     query, params = bq(
         sql("SELECT COUNT(*) AS count FROM users WHERE 1 = 1"),
-        (priv, equals_variable("priv", "priv")),
-        (country, equals_variable("country", "country")),
-        (clan_id, equals_variable("clan_id", "clan_id")),
-        (clan_priv, equals_variable("clan_priv", "clan_priv")),
-        (preferred_mode, equals_variable("preferred_mode", "preferred_mode")),
-        (play_style, equals_variable("play_style", "play_style")),
+        AND(priv, equals_variable("priv", "priv")),
+        AND(country, equals_variable("country", "country")),
+        AND(clan_id, equals_variable("clan_id", "clan_id")),
+        AND(clan_priv, equals_variable("clan_priv", "clan_priv")),
+        AND(preferred_mode, equals_variable("preferred_mode", "preferred_mode")),
+        AND(play_style, equals_variable("play_style", "play_style")),
     )
 
     rec = await app.state.services.database.fetch_one(query, params)
@@ -181,12 +181,12 @@ async def fetch_many(
     """Fetch multiple players from the database."""
     query, params = bq(
         sql(f"SELECT {READ_PARAMS} FROM users WHERE 1 = 1"),
-        (priv, equals_variable("priv", "priv")),
-        (country, equals_variable("country", "country")),
-        (clan_id, equals_variable("clan_id", "clan_id")),
-        (clan_priv, equals_variable("clan_priv", "clan_priv")),
-        (preferred_mode, equals_variable("preferred_mode", "preferred_mode")),
-        (play_style, equals_variable("play_style", "play_style")),
+        AND(priv, equals_variable("priv", "priv")),
+        AND(country, equals_variable("country", "country")),
+        AND(clan_id, equals_variable("clan_id", "clan_id")),
+        AND(clan_priv, equals_variable("clan_priv", "clan_priv")),
+        AND(preferred_mode, equals_variable("preferred_mode", "preferred_mode")),
+        AND(play_style, equals_variable("play_style", "play_style")),
         (
             (page_size, "LIMIT :page_size"),
             lambda: (

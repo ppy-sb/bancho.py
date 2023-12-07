@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 from typing import cast
 from typing import TypedDict
-from app.query_builder import build as bq, sql, equals_variable
+from app.query_builder import build as bq, sql, equals_variable, AND
 
 import app.state.services
 
@@ -99,8 +99,8 @@ async def fetch_count(
     """Fetch the number of logins in the database."""
     query, params = bq(
         sql("SELECT COUNT(*) count FROM ingame_logins WHERE 1 = 1"),
-        (user_id, equals_variable("userid", "userid")),
-        (ip, equals_variable("ip", "ip")),
+        AND(user_id, equals_variable("userid", "userid")),
+        AND(ip, equals_variable("ip", "ip")),
     )
 
     rec = await app.state.services.database.fetch_one(query, params)
@@ -119,10 +119,10 @@ async def fetch_many(
     """Fetch a list of logins from the database."""
     query, params = bq(
         sql(f"SELECT {READ_PARAMS} FROM ingame_logins WHERE 1 = 1"),
-        (user_id, equals_variable("userid", "userid")),
-        (ip, equals_variable("ip", "ip")),
-        (osu_ver, equals_variable("osu_ver", "osu_ver")),
-        (osu_stream, equals_variable("osu_stream", "osu_stream")),
+        AND(user_id, equals_variable("userid", "userid")),
+        AND(ip, equals_variable("ip", "ip")),
+        AND(osu_ver, equals_variable("osu_ver", "osu_ver")),
+        AND(osu_stream, equals_variable("osu_stream", "osu_stream")),
         (
             (page_size, sql("LIMIT :page_size")),
             lambda: (

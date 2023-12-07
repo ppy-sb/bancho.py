@@ -92,8 +92,8 @@ async def fetch_one(
 
     query, params = bq(
         sql(f"SELECT {READ_PARAMS} FROM achievements WHERE 1 = 1"),
-        (id, equals_variable("id", "id")),
-        (name, equals_variable("name", "name")),
+        AND(id, equals_variable("id", "id")),
+        AND(name, equals_variable("name", "name")),
     )
 
     rec = await app.state.services.database.fetch_one(query, params)

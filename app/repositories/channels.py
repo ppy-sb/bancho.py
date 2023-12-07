@@ -8,7 +8,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
-from app.query_builder import build as bq, sql, equals_variable
+from app.query_builder import build as bq, sql, equals_variable, AND
 
 # +------------+--------------+------+-----+---------+----------------+
 # | Field      | Type         | Null | Key | Default | Extra          |
@@ -92,8 +92,8 @@ async def fetch_one(
 
     query, params = bq(
         sql(f"SELECT {READ_PARAMS} FROM channels WHERE 1 = 1"),
-        (id, equals_variable("id", "id")),
-        (name, equals_variable("name", "name")),
+        AND(id, equals_variable("id", "id")),
+        AND(name, equals_variable("name", "name")),
     )
 
     channel = await app.state.services.database.fetch_one(query, params)
@@ -111,9 +111,9 @@ async def fetch_count(
 
     query, params = bq(
         sql("SELECT COUNT(*) count FROM channels WHERE 1 = 1"),
-        (read_priv, equals_variable("read_priv", "read_priv")),
-        (write_priv, equals_variable("write_priv", "write_priv")),
-        (auto_join, equals_variable("auto_join", "auto_join")),
+        AND(read_priv, equals_variable("read_priv", "read_priv")),
+        AND(write_priv, equals_variable("write_priv", "write_priv")),
+        AND(auto_join, equals_variable("auto_join", "auto_join")),
     )
 
     rec = await app.state.services.database.fetch_one(query, params)
@@ -131,9 +131,9 @@ async def fetch_many(
     """Fetch multiple channels from the database."""
     query, params = bq(
         sql(f"SELECT {READ_PARAMS} FROM channels WHERE 1 = 1"),
-        (read_priv, equals_variable("read_priv", "read_priv")),
-        (write_priv, equals_variable("write_priv", "write_priv")),
-        (auto_join, equals_variable("auto_join", "auto_join")),
+        AND(read_priv, equals_variable("read_priv", "read_priv")),
+        AND(write_priv, equals_variable("write_priv", "write_priv")),
+        AND(auto_join, equals_variable("auto_join", "auto_join")),
         (
             (page_size, sql("LIMIT :page_size")),
             lambda: (

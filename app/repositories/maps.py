@@ -8,7 +8,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
-from app.query_builder import build as bq, sql, equals_variable
+from app.query_builder import build as bq, sql, equals_variable, AND
 
 # +--------------+------------------------+------+-----+---------+-------+
 # | Field        | Type                   | Null | Key | Default | Extra |
@@ -186,9 +186,9 @@ async def fetch_one(
 
     query, params = bq(
         sql(f"SELECT {READ_PARAMS} FROM maps WHERE 1 = 1"),
-        (id, equals_variable("id", "id")),
-        (md5, equals_variable("md5", "md5")),
-        (filename, equals_variable("filename", "filename")),
+        AND(id, equals_variable("id", "id")),
+        AND(md5, equals_variable("md5", "md5")),
+        AND(filename, equals_variable("filename", "filename")),
     )
 
     result = await app.state.services.database.fetch_one(query, params)
@@ -209,14 +209,14 @@ async def fetch_count(
 
     query, params = bq(
         sql("SELECT COUNT(*) count FROM maps WHERE 1 = 1"),
-        (server, equals_variable("server", "server")),
-        (set_id, equals_variable("set_id", "set_id")),
-        (status, equals_variable("status", "status")),
-        (artist, equals_variable("artist", "artist")),
-        (creator, equals_variable("creator", "creator")),
-        (filename, equals_variable("filename", "filename")),
-        (mode, equals_variable("mode", "mode")),
-        (frozen, equals_variable("frozen", "frozen")),
+        AND(server, equals_variable("server", "server")),
+        AND(set_id, equals_variable("set_id", "set_id")),
+        AND(status, equals_variable("status", "status")),
+        AND(artist, equals_variable("artist", "artist")),
+        AND(creator, equals_variable("creator", "creator")),
+        AND(filename, equals_variable("filename", "filename")),
+        AND(mode, equals_variable("mode", "mode")),
+        AND(frozen, equals_variable("frozen", "frozen")),
     )
 
     rec = await app.state.services.database.fetch_one(query, params)
@@ -240,14 +240,14 @@ async def fetch_many(
 
     query, params = bq(
         sql(f"SELECT {READ_PARAMS} FROM maps WHERE 1 = 1"),
-        (server, equals_variable("server", "server")),
-        (set_id, equals_variable("set_id", "set_id")),
-        (status, equals_variable("status", "status")),
-        (artist, equals_variable("artist", "artist")),
-        (creator, equals_variable("creator", "creator")),
-        (filename, equals_variable("filename", "filename")),
-        (mode, equals_variable("mode", "mode")),
-        (frozen, equals_variable("frozen", "frozen")),
+        AND(server, equals_variable("server", "server")),
+        AND(set_id, equals_variable("set_id", "set_id")),
+        AND(status, equals_variable("status", "status")),
+        AND(artist, equals_variable("artist", "artist")),
+        AND(creator, equals_variable("creator", "creator")),
+        AND(filename, equals_variable("filename", "filename")),
+        AND(mode, equals_variable("mode", "mode")),
+        AND(frozen, equals_variable("frozen", "frozen")),
     )
 
     if page is not None and page_size is not None:

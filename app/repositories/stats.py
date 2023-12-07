@@ -8,7 +8,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
-from app.query_builder import build as bq, sql, equals_variable
+from app.query_builder import build as bq, sql, equals_variable, AND
 
 # +--------------+-----------------+------+-----+---------+----------------+
 # | Field        | Type            | Null | Key | Default | Extra          |
@@ -161,8 +161,8 @@ async def fetch_count(
 ) -> int:
     query, params = bq(
         sql("SELECT COUNT(*) count FROM stats WHERE 1 = 1"),
-        (player_id, equals_variable("id", "id")),
-        (mode, equals_variable("mode", "mode")),
+        AND(player_id, equals_variable("id", "id")),
+        AND(mode, equals_variable("mode", "mode")),
     )
 
     rec = await app.state.services.database.fetch_one(query, params)
@@ -178,8 +178,8 @@ async def fetch_many(
 ) -> list[Stat]:
     query, params = bq(
         sql(f"SELECT {READ_PARAMS} FROM stats WHERE 1 = 1"),
-        (player_id, equals_variable("id", "id")),
-        (mode, equals_variable("mode", "mode")),
+        AND(player_id, equals_variable("id", "id")),
+        AND(mode, equals_variable("mode", "mode")),
         (
             (page_size, "LIMIT :page_size"),
             lambda: (
