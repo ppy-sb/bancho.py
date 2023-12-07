@@ -9,7 +9,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
-from app.query_builder import build as bq, sql
+from app.query_builder import build as bq, sql, equals_variable
 
 # +------------+-------------+------+-----+---------+----------------+
 # | Field      | Type        | Null | Key | Default | Extra          |
@@ -85,10 +85,10 @@ async def fetch_one(
 
     query, params = bq(
         sql(f"SELECT {READ_PARAMS} FROM clans WHERE 1 = 1"),
-        (id, sql("AND id = :id")),
-        (name, sql("AND name = :name")),
-        (tag, sql("AND tag = :tag")),
-        (owner, sql("AND owner = :owner")),
+        (id, equals_variable("id", "id")),
+        (name, equals_variable("name", "name")),
+        (tag, equals_variable("tag", "tag")),
+        (owner, equals_variable("owner", "owner")),
     )
 
     clan = await app.state.services.database.fetch_one(query, params)

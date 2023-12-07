@@ -10,7 +10,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
-from app.query_builder import build as bq, sql
+from app.query_builder import build as bq, sql, equals_variable
 
 if TYPE_CHECKING:
     from app.objects.score import Score
@@ -92,8 +92,8 @@ async def fetch_one(
 
     query, params = bq(
         sql(f"SELECT {READ_PARAMS} FROM achievements WHERE 1 = 1"),
-        (id, sql("AND id = :id")),
-        (name, sql("AND name = :name")),
+        (id, equals_variable("id", "id")),
+        (name, equals_variable("name", "name")),
     )
 
     rec = await app.state.services.database.fetch_one(query, params)

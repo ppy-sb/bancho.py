@@ -8,7 +8,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
-from app.query_builder import build as bq, sql
+from app.query_builder import build as bq, sql, equals_variable
 
 # +--------------+------------------------+------+-----+---------+-------+
 # | Field        | Type                   | Null | Key | Default | Extra |
@@ -186,9 +186,9 @@ async def fetch_one(
 
     query, params = bq(
         sql(f"SELECT {READ_PARAMS} FROM maps WHERE 1 = 1"),
-        (id, sql("AND id = :id")),
-        (md5, sql("AND md5 = :md5")),
-        (filename, sql("AND filename = :filename")),
+        (id, equals_variable("id", "id")),
+        (md5, equals_variable("md5", "md5")),
+        (filename, equals_variable("filename", "filename")),
     )
 
     result = await app.state.services.database.fetch_one(query, params)
@@ -209,14 +209,14 @@ async def fetch_count(
 
     query, params = bq(
         sql("SELECT COUNT(*) count FROM maps WHERE 1 = 1"),
-        (server, sql("AND server = :server")),
-        (set_id, sql("AND set_id = :set_id")),
-        (status, sql("AND status = :status")),
-        (artist, sql("AND artist = :artist")),
-        (creator, sql("AND creator = :creator")),
-        (filename, sql("AND filename = :filename")),
-        (mode, sql("AND mode = :mode")),
-        (frozen, sql("AND frozen = :frozen")),
+        (server, equals_variable("server", "server")),
+        (set_id, equals_variable("set_id", "set_id")),
+        (status, equals_variable("status", "status")),
+        (artist, equals_variable("artist", "artist")),
+        (creator, equals_variable("creator", "creator")),
+        (filename, equals_variable("filename", "filename")),
+        (mode, equals_variable("mode", "mode")),
+        (frozen, equals_variable("frozen", "frozen")),
     )
 
     rec = await app.state.services.database.fetch_one(query, params)
@@ -240,14 +240,14 @@ async def fetch_many(
 
     query, params = bq(
         sql(f"SELECT {READ_PARAMS} FROM maps WHERE 1 = 1"),
-        (server, sql("AND server = :server")),
-        (set_id, sql("AND set_id = :set_id")),
-        (status, sql("AND status = :status")),
-        (artist, sql("AND artist = :artist")),
-        (creator, sql("AND creator = :creator")),
-        (filename, sql("AND filename = :filename")),
-        (mode, sql("AND mode = :mode")),
-        (frozen, sql("AND frozen = :frozen")),
+        (server, equals_variable("server", "server")),
+        (set_id, equals_variable("set_id", "set_id")),
+        (status, equals_variable("status", "status")),
+        (artist, equals_variable("artist", "artist")),
+        (creator, equals_variable("creator", "creator")),
+        (filename, equals_variable("filename", "filename")),
+        (mode, equals_variable("mode", "mode")),
+        (frozen, equals_variable("frozen", "frozen")),
     )
 
     if page is not None and page_size is not None:

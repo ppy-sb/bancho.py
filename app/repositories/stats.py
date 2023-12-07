@@ -8,7 +8,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
-from app.query_builder import build as bq, sql
+from app.query_builder import build as bq, sql, equals_variable
 
 # +--------------+-----------------+------+-----+---------+----------------+
 # | Field        | Type            | Null | Key | Default | Extra          |
@@ -161,8 +161,8 @@ async def fetch_count(
 ) -> int:
     query, params = bq(
         sql("SELECT COUNT(*) count FROM stats WHERE 1 = 1"),
-        (player_id, sql("AND id = :id")),
-        (mode, sql("AND mode = :mode")),
+        (player_id, equals_variable("id", "id")),
+        (mode, equals_variable("mode", "mode")),
     )
 
     rec = await app.state.services.database.fetch_one(query, params)
@@ -178,8 +178,8 @@ async def fetch_many(
 ) -> list[Stat]:
     query, params = bq(
         sql(f"SELECT {READ_PARAMS} FROM stats WHERE 1 = 1"),
-        (player_id, sql("AND id = :id")),
-        (mode, sql("AND mode = :mode")),
+        (player_id, equals_variable("id", "id")),
+        (mode, equals_variable("mode", "mode")),
         (
             (page_size, "LIMIT :page_size"),
             lambda: (
@@ -246,7 +246,7 @@ async def update(
         sql("UPDATE stats SET"),
         sql(",".join(f"{k} = :{k}" for k in update_fields)),
         sql("WHERE id = :id"),
-        sql("AND mode = :mode"),
+        equals_variable("mode", "mode"),
     )
     values = {"id": player_id, "mode": mode} | update_fields
     await app.state.services.database.execute(query, values)

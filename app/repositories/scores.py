@@ -9,7 +9,7 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
-from app.query_builder import build as bq, sql
+from app.query_builder import build as bq, sql, equals_variable
 
 # +-----------------+-----------------+------+-----+---------+----------------+
 # | Field           | Type            | Null | Key | Default | Extra          |
@@ -186,11 +186,11 @@ async def fetch_count(
 ) -> int:
     query, params = bq(
         sql("SELECT COUNT(*) count FROM scores WHERE 1 = 1"),
-        (map_md5, sql("AND map_md5 = :map_md5")),
-        (mods, sql("AND mods = :mods")),
-        (status, sql("AND status = :status")),
-        (mode, sql("AND mode = :mode")),
-        (user_id, sql("AND userid = :userid")),
+        (map_md5, equals_variable("map_md5", "map_md5")),
+        (mods, equals_variable("mods", "mods")),
+        (status, equals_variable("status", "status")),
+        (mode, equals_variable("mode", "mode")),
+        (user_id, equals_variable("userid", "userid")),
     )
     rec = await app.state.services.database.fetch_one(query, params)
     assert rec is not None
@@ -208,11 +208,11 @@ async def fetch_many(
 ) -> list[Score]:
     query, params = bq(
         sql(f"SELECT {READ_PARAMS} FROM scores WHERE 1 = 1"),
-        (map_md5, sql("AND map_md5 = :map_md5")),
-        (mods, sql("AND mods = :mods")),
-        (status, sql("AND status = :status")),
-        (mode, sql("AND mode = :mode")),
-        (user_id, sql("AND userid = :userid")),
+        (map_md5, equals_variable("map_md5", "map_md5")),
+        (mods, equals_variable("mods", "mods")),
+        (status, equals_variable("status", "status")),
+        (mode, equals_variable("mode", "mode")),
+        (user_id, equals_variable("userid", "userid")),
         (
             (page_size, sql("LIMIT :page_size")),
             lambda: (
