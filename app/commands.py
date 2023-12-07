@@ -260,8 +260,10 @@ async def reconnect(ctx: Context) -> str | None:
     return None
 
 
-@command(Privileges.SUPPORTER)
+# @command(Privileges.SUPPORTER) # ppysb feature: disable ingame name changing
+@command(Privileges.UNRESTRICTED)
 async def changename(ctx: Context) -> str | None:
+    return f"[https://osu.ppy.sb/me/settings User Settings - Guccho]"
     """Change your username."""
     name = " ".join(ctx.args).strip()
 
