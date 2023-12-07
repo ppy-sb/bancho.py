@@ -8,7 +8,16 @@ from typing import TypedDict
 import app.state.services
 from app._typing import _UnsetSentinel
 from app._typing import UNSET
-from app.query_builder import build as bq, sql, equals_variable, AND
+from app.query_builder import (
+    build as bq,
+    sql,
+    equals_variable,
+    AND,
+    UPDATE,
+    SET,
+    optional_param,
+    table,
+)
 
 # +--------------+-----------------+------+-----+---------+----------------+
 # | Field        | Type            | Null | Key | Default | Extra          |
@@ -243,10 +252,11 @@ async def update(
         update_fields["a_count"] = a_count
 
     query, _ = bq(
-        sql("UPDATE stats SET"),
-        sql(",".join(f"{k} = :{k}" for k in update_fields)),
-        sql("WHERE id = :id"),
-        equals_variable("mode", "mode"),
+        UPDATE(
+            table("stats"),
+            SET(*(equals_variable(k, k) for k in update_fields)),
+            (sql("WHERE id = :id"), AND(equals_variable("mode", "mode"))),
+        )
     )
     values = {"id": player_id, "mode": mode} | update_fields
     await app.state.services.database.execute(query, values)
