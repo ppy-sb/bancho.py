@@ -28,6 +28,7 @@ from fastapi.responses import HTMLResponse
 import app.packets
 import app.settings
 import app.state
+from app.usecases import anticheat
 import app.usecases.performance
 import app.utils
 from app import commands
@@ -63,7 +64,7 @@ from app.packets import BanchoPacketReader
 from app.packets import BasePacket
 from app.packets import ClientPackets
 from app.packets import LoginFailureReason
-from app.repositories import client_hashes as client_hashes_repo
+from app.repositories import client_hashes as client_hashes_repo, scores_suspicion
 from app.repositories import ingame_logins as logins_repo
 from app.repositories import mail as mail_repo
 from app.repositories import users as users_repo
@@ -1048,6 +1049,8 @@ async def handle_osu_login_request(
             )
 
     else:
+        is_frozen = await scores_suspicion.has_suspicion(player.id)
+
         # player is restricted, one way data
         for o in app.state.sessions.players.unrestricted:
             # enqueue them to us.
@@ -1063,10 +1066,18 @@ async def handle_osu_login_request(
         data += app.packets.account_restricted()
         data += app.packets.send_message(
             sender=app.state.sessions.bot.name,
-            msg=RESTRICTED_MSG,
+            msg=RESTRICTED_MSG if not is_frozen else anticheat.FROZEN_MSG,
             recipient=player.name,
             sender_id=app.state.sessions.bot.id,
         )
+
+        if is_frozen:
+            data += app.packets.send_message(
+                sender=app.state.sessions.bot.name,
+                msg=anticheat.FROZEN_MSG_1,
+                recipient=player.name,
+                sender_id=app.state.sessions.bot.id,
+            )
 
     # add `p` to the global player list,
     # making them officially logged in.

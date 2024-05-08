@@ -1,6 +1,7 @@
 """ osu: handle connections from web, api, and beyond? """
 
 from __future__ import annotations
+import asyncio
 
 import copy
 import hashlib
@@ -55,6 +56,7 @@ from app.objects import models
 from app.objects.beatmap import Beatmap
 from app.objects.beatmap import RankedStatus
 from app.objects.player import OsuStream, Player
+from app.objects.beatmap import ensure_osu_file_is_available
 from app.objects.player import Privileges
 from app.objects.score import Grade
 from app.objects.score import Score
@@ -69,7 +71,7 @@ from app.repositories import scores as scores_repo
 from app.repositories import stats as stats_repo
 from app.repositories import users as users_repo
 from app.repositories.achievements import Achievement
-from app.usecases import achievements as achievements_usecases
+from app.usecases import achievements as achievements_usecases, anticheat
 from app.usecases import user_achievements as user_achievements_usecases
 from app.utils import escape_enum
 from app.utils import pymysql_encode
@@ -601,62 +603,9 @@ async def osuSubmitModularSelector(
 
     ## perform checksum validation
 
-    unique_id1, unique_id2 = unique_ids.split("|", maxsplit=1)
-    unique_id1_md5 = hashlib.md5(unique_id1.encode()).hexdigest()
-    unique_id2_md5 = hashlib.md5(unique_id2.encode()).hexdigest()
-
-    try:
-        assert player.client_details is not None
-        
-        bypass_client_check = player.client_details.osu_version.stream == OsuStream.PPYSB # ppysb feature
-        
-        if not bypass_client_check:
-            
-            if osu_version != f"{player.client_details.osu_version.date:%Y%m%d}":
-                raise ValueError("osu! version mismatch")
-
-            if client_hash_decoded != player.client_details.client_hash:
-                raise ValueError("client hash mismatch")
-            # assert unique ids (c1) are correct and match login params
-            if unique_id1_md5 != player.client_details.uninstall_md5:
-                raise ValueError(
-                    f"unique_id1 mismatch ({unique_id1_md5} != {player.client_details.uninstall_md5})",
-                )
-
-            if unique_id2_md5 != player.client_details.disk_signature_md5:
-                raise ValueError(
-                    f"unique_id2 mismatch ({unique_id2_md5} != {player.client_details.disk_signature_md5})",
-                )
-
-            # assert online checksums match
-            server_score_checksum = score.compute_online_checksum(
-                osu_version=osu_version,
-                osu_client_hash=client_hash_decoded,
-                storyboard_checksum=storyboard_md5 or "",
-            )
-            if score.client_checksum != server_score_checksum:
-                raise ValueError(
-                    f"online score checksum mismatch ({server_score_checksum} != {score.client_checksum})",
-                )
-
-            # assert beatmap hashes match
-            if bmap_md5 != updated_beatmap_hash:
-                raise ValueError(
-                    f"beatmap hash mismatch ({bmap_md5} != {updated_beatmap_hash})",
-                )
-                
-    except (ValueError, AssertionError) as error:
-        if error.args.count == 1:
-            await player.restrict(
-                admin=app.state.sessions.bot,
-                reason=error.args[0],
-            )
-
-            # refresh their client state
-            if player.online:
-                player.logout()
-
-            return b"error: ban"
+    asyncio.ensure_future(
+        anticheat.validate_checksum(unique_ids, osu_version, client_hash_decoded, storyboard_md5, bmap_md5, updated_beatmap_hash, player, score)
+    )
 
     # we should update their activity no matter
     # what the result of the score submission is.
@@ -834,6 +783,9 @@ async def osuSubmitModularSelector(
                 )
                 if score.player.is_online:
                     score.player.logout()
+
+        # suspect the score after the replay file written
+        asyncio.ensure_future(anticheat.validate_replay(player, score))
 
     """ Update the user's & beatmap's stats """
 
