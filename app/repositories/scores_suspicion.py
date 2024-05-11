@@ -7,7 +7,7 @@ import app
 from app.repositories import Base
 from sqlalchemy import insert
 from sqlalchemy import select
-from sqlalchemy import Column, JSON, String, DateTime, BigInteger, Enum
+from sqlalchemy import Column, JSON, String, DateTime, BigInteger, Enum, Boolean
 
 class SuspicionKind(StrEnum):
     PPCAP = "ppcap"
@@ -21,6 +21,7 @@ class ScoresSuspicionTable(Base):
     score_id = Column(BigInteger, primary_key=True)
     kind = Column(Enum(SuspicionKind, name="kind"), nullable=False)
     reason = Column(String(128), nullable=False)
+    is_checked = Column(Boolean, nullable=False)
     detail = Column(JSON, nullable=True)
     created_at = Column(DateTime, nullable=False)
 
@@ -28,6 +29,7 @@ class ScoresSuspicion(TypedDict):
     score_id: int
     kind: str
     reason: str
+    is_checked: bool
     detail: dict
     created_at: datetime
 
@@ -35,6 +37,7 @@ READ_PARAMS = (
     ScoresSuspicionTable.score_id,
     ScoresSuspicionTable.kind,
     ScoresSuspicionTable.reason,
+    ScoresSuspicionTable.is_checked,
     ScoresSuspicionTable.detail,
     ScoresSuspicionTable.created_at,
 )
@@ -45,6 +48,7 @@ async def create(score_id: int, kind: SuspicionKind, reason: str, detail: dict) 
         score_id=score_id,
         kind=str(kind),
         reason=reason,
+        is_checked=False,
         detail=json.dumps(detail),
         created_at=datetime.now()
     )
