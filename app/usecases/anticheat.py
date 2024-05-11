@@ -101,7 +101,8 @@ def _parse_score(score: Score) -> Union[ReplayString, Optional[Beatmap]]:
         log(f"Failed to load beatmap ({beatmap_file}), skipped.", Ansi.RED)
 
 async def _save_suspicion(player: Player, score: Score, kind: SuspicionKind, reason: str, detail: dict):
-    if not player.priv & Privileges.WHITELISTED:
+    # PP threshold exceeded but player is not whitelisted.
+    if kind == SuspicionKind.PPCAP and not player.priv & Privileges.WHITELISTED:
         await player.restrict(app.state.sessions.bot, "suspicion detected, temporally restrict the player.")
     await scores_suspicion.create(score.id, kind, reason, detail)
 
@@ -184,7 +185,8 @@ async def validate_replay(player: Player, score: Score):
         if len(snaps) > snaps_limition:
             await _save_suspicion(player, score, SuspicionKind.REPLAY, f"potential assist (snaps: {len(snaps):.2f} / {snaps_limition})", detail)
     
-        if score.bmap.has_leaderboard and score.pp > PPCAP[score.mode]:
+        # bmap.status in [Ranked, Approved]
+        if score.bmap.awards_ranked_pp and score.pp > PPCAP[score.mode]:
             await _save_suspicion(player, score, SuspicionKind.PPCAP, f"ppcap threshold exceeded (pp: {score.pp:.2f} / {PPCAP[score.mode]})", detail)
     except:
         log(f"Failed to check the score ({score.id} by {score.player.name}), skipped.", Ansi.RED)
