@@ -1229,8 +1229,8 @@ async def get_leaderboard_scores(
     is_streaming = app.state.sessions.streaming_players.get(player.id, False)
     if is_streaming:
         for score in score_rows:
-            # we replacd the username with that user's userid, also, return a fake userid to hide avatar.
-            score['name'] = score['userid']
+            # we replaced the username with that user's userid, also, return a fake userid to hide avatar.
+            score['name'] = f"Player{str(score['userid'])}"
             score['userid'] = -1     
 
     return score_rows, personal_best_score_row
