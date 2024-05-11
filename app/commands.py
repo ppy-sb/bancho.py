@@ -186,6 +186,15 @@ async def _help(ctx: Context) -> str | None:
     return "\n".join(l)
 
 
+@command(Privileges.UNRESTRICTED, aliases=["sm", "streamer", "streamermode"])
+async def streamer_mode(ctx: Context) -> str | None:
+    if not ctx.args or ctx.args[0] not in ["on", "off"]:
+        return "Invalid syntax: !streamer_mode <on/off>"
+    enabled = ctx.args[0] == "on"
+    app.state.sessions.streaming_players[ctx.player.id] = enabled
+    return f"Streamer mode is {'enabled' if enabled else 'disabled'}"
+
+
 @command(Privileges.UNRESTRICTED)
 async def roll(ctx: Context) -> str | None:
     """Roll an n-sided die where n is the number you write (100 default)."""
