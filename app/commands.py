@@ -187,6 +187,18 @@ async def _help(ctx: Context) -> str | None:
 
 
 @command(Privileges.UNRESTRICTED)
+async def streamer(ctx: Context) -> str | None:
+    if not ctx.args or ctx.args[0] not in ["mode"]:
+        return "Invalid path. Available pathes: mode"
+    if ctx.args[0] == "mode":
+        if len(ctx.args) != 2 or ctx.args[1] not in ["on", "off"]:
+            return "Invalid syntax: !streamer mode <on/off>"
+        enabled = ctx.args[1] == "on"
+        app.state.sessions.streaming_players[ctx.player.id] = enabled
+        return f"Streamer mode is {'enabled' if enabled else 'disabled'}"
+
+
+@command(Privileges.UNRESTRICTED)
 async def roll(ctx: Context) -> str | None:
     """Roll an n-sided die where n is the number you write (100 default)."""
     if ctx.args and ctx.args[0].isdecimal():
