@@ -18,6 +18,7 @@ channels = Channels()
 matches = Matches()
 
 api_keys: dict[str, int] = {}
+streaming_players: dict[int, bool] = {}
 
 housekeeping_tasks: set[asyncio.Task[Any]] = set()
 
