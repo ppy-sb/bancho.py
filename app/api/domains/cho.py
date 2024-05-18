@@ -693,7 +693,8 @@ async def handle_osu_login_request(
             stream=OsuStream(match["stream"] or "stable"),
         )
 
-    if app.settings.DISALLOW_OLD_CLIENTS:
+    # bypassed client should not be figured of old clients
+    if not bypass and app.settings.DISALLOW_OLD_CLIENTS:
         osu_client_stream = osu_version.stream.value
         if osu_client_stream in ("stable", "beta"):
             osu_client_stream += "40"  # TODO: why?
