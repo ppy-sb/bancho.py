@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+import json
 import pickle
 import re
 import secrets
@@ -193,9 +194,9 @@ def __fetch_geoloc_nginx(headers: Mapping[str, str]) -> Geolocation | None:
 async def _fetch_geoloc_from_ip(ip: IPAddress) -> Geolocation | None:
     """Fetch geolocation data based on ip (using ip-api)."""
     if not ip.is_private:
-        url = f"http://ip-api.com/line/{ip}"
+        url = f"https://freeipapi.com/api/json/{ip}"
     else:
-        url = "http://ip-api.com/line/"
+        url = "https://freeipapi.com/api/json/"
 
     response = await http_client.get(
         url,
@@ -207,24 +208,26 @@ async def _fetch_geoloc_from_ip(ip: IPAddress) -> Geolocation | None:
         log("Failed to get geoloc data: request failed.", Ansi.LRED)
         return None
 
-    status, *lines = response.read().decode().split("\n")
+    res = json.loads(response.read().decode())
 
-    if status != "success":
-        err_msg = lines[0]
-        if err_msg == "invalid query":
-            err_msg += f" ({url})"
+    # status, *lines = response.read().decode().split("\n")
 
-        log(f"Failed to get geoloc data: {err_msg} for ip {ip}.", Ansi.LRED)
-        return None
+    # if status != "success":
+    #     err_msg = lines[0]
+    #     if err_msg == "invalid query":
+    #         err_msg += f" ({url})"
 
-    country_acronym = lines[0].lower()
+    #     log(f"Failed to get geoloc data: {err_msg}.", Ansi.LRED)
+    #     return None
+
+    # acronym = lines[1].lower()
 
     return {
-        "latitude": float(lines[1]),
-        "longitude": float(lines[2]),
+        "latitude": res["latitude"],
+        "longitude": res["longitude"],
         "country": {
-            "acronym": country_acronym,
-            "numeric": country_codes[country_acronym],
+            "acronym": res["countryCode"].lower(),
+            "numeric": country_codes[res["countryCode"].lower()],
         },
     }
 
