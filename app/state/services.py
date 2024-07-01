@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import ipaddress
 import logging
-import json
 import pickle
 import re
 import secrets
@@ -198,17 +197,12 @@ async def _fetch_geoloc_from_ip(ip: IPAddress) -> Geolocation | None:
     else:
         url = "https://freeipapi.com/api/json/"
 
-    response = await http_client.get(
-        url,
-        params={
-            "fields": ",".join(("status", "message", "countryCode", "lat", "lon")),
-        },
-    )
+    response = await http_client.get(url)
     if response.status_code != 200:
         log("Failed to get geoloc data: request failed.", Ansi.LRED)
         return None
 
-    res = json.loads(response.read().decode())
+    res = response.json()
 
     # status, *lines = response.read().decode().split("\n")
 
