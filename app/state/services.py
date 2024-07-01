@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import Enum
 import ipaddress
 import logging
 import pickle
@@ -55,10 +56,20 @@ class Country(TypedDict):
     numeric: int
 
 
+class GeolocationProvider(str, Enum):
+    IP_API = "ip-api"
+    FreeIPAPI = "freeipapi"
+
+
 class Geolocation(TypedDict):
     latitude: float
     longitude: float
     country: Country
+
+
+geolocation_provider: GeolocationProvider = GeolocationProvider(
+    app.settings.GEOLOCATION_PROVIDER
+)
 
 
 # fmt: off
@@ -132,7 +143,7 @@ async def fetch_geoloc(
         geoloc = _fetch_geoloc_from_headers(headers)
 
     if geoloc is None:
-        geoloc = await _fetch_geoloc_from_ip(ip)
+        geoloc = await _fetch_geoloc_from_ip(ip, backend=geolocation_provider)
 
     return geoloc
 
@@ -189,43 +200,85 @@ def __fetch_geoloc_nginx(headers: Mapping[str, str]) -> Geolocation | None:
     }
 
 
-async def _fetch_geoloc_from_ip(ip: IPAddress) -> Geolocation | None:
+async def _fetch_geoloc_from_ip(
+    ip: IPAddress, backend: GeolocationProvider
+) -> Geolocation | None:
     """Fetch geolocation data based on ip (using ip-api)."""
+    return (
+        await _fetch_geoloc_from_ip_use_ip_api(ip)
+        if backend is GeolocationProvider.IP_API
+        else await _fetch_geoloc_from_ip_freeipapi(ip)
+    )
+
+
+async def _fetch_geoloc_from_ip_freeipapi(ip: IPAddress) -> Geolocation | None:
+    if not ip.is_private:
+        url = f"https://freeipapi.com/api/json/{ip}"
+    else:
+        url = "https://freeipapi.com/api/json/"
+
+    try:
+
+        response = await http_client.get(url)
+
+        if response.status_code < 200 or response.status_code >= 400:
+            log(f"Failed to get geoloc data: Code {response.status_code}.", Ansi.LRED)
+            return None
+
+        res = response.json()
+
+        return {
+            "latitude": res["latitude"],
+            "longitude": res["longitude"],
+            "country": {
+                "acronym": res["countryCode"].lower(),
+                "numeric": country_codes[res["countryCode"].lower()],
+            },
+        }
+
+    except Exception as e:
+        log(f"thrown while fetching from freeipapi: {url}, error: {e}", Ansi.RED)
+
+
+async def _fetch_geoloc_from_ip_use_ip_api(ip: IPAddress) -> Geolocation | None:
     if not ip.is_private:
         url = f"http://ip-api.com/line/{ip}"
     else:
         url = "http://ip-api.com/line/"
 
-    response = await http_client.get(
-        url,
-        params={
-            "fields": ",".join(("status", "message", "countryCode", "lat", "lon")),
-        },
-    )
-    if response.status_code != 200:
-        log("Failed to get geoloc data: request failed.", Ansi.LRED)
-        return None
+    try:
+        response = await http_client.get(
+            url,
+            params={
+                "fields": ",".join(("status", "message", "countryCode", "lat", "lon")),
+            },
+        )
+        if response.status_code != 200:
+            log("Failed to get geoloc data: request failed.", Ansi.LRED)
+            return None
 
-    status, *lines = response.read().decode().split("\n")
+        status, *lines = response.read().decode().split("\n")
 
-    if status != "success":
-        err_msg = lines[0]
-        if err_msg == "invalid query":
-            err_msg += f" ({url})"
+        if status != "success":
+            err_msg = lines[0]
+            if err_msg == "invalid query":
+                err_msg += f" ({url})"
 
-        log(f"Failed to get geoloc data: {err_msg} for ip {ip}.", Ansi.LRED)
-        return None
+            log(f"Failed to get geoloc data: {err_msg} for ip {ip}.", Ansi.LRED)
+            return None
 
-    country_acronym = lines[0].lower()
+        country_acronym = lines[0].lower()
 
-    return {
-        "latitude": float(lines[1]),
-        "longitude": float(lines[2]),
-        "country": {
-            "acronym": country_acronym,
-            "numeric": country_codes[country_acronym],
-        },
-    }
+        return {
+            "latitude": float(lines[1]),
+            "longitude": float(lines[2]),
+            "country": {
+                "acronym": country_acronym,
+                "numeric": country_codes[country_acronym],
+            },
+        }
+    except Exception as e:
+        log(f"thrown while fetching from ip-api: {url}, error: {e}", Ansi.RED)
 
 
 async def log_strange_occurrence(obj: object) -> None:

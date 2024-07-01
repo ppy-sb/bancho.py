@@ -62,6 +62,8 @@ AUTOMATICALLY_REPORT_PROBLEMS = read_bool(os.environ["AUTOMATICALLY_REPORT_PROBL
 
 LOG_WITH_COLORS = read_bool(os.environ["LOG_WITH_COLORS"])
 
+GEOLOCATION_PROVIDER = os.environ["GEOLOCATION_PROVIDER"]
+
 # advanced dev settings
 
 ## WARNING touch this once you've
