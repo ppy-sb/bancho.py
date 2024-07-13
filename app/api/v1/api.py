@@ -6,6 +6,7 @@ import hashlib
 import struct
 from pathlib import Path as SystemPath
 from typing import Literal
+from urllib.parse import quote
 
 from fastapi import APIRouter
 from fastapi import Depends
@@ -718,7 +719,7 @@ async def api_get_replay(
     # add replay headers from sql
     # TODO: osu_version & life graph in scores tables?
     row = await app.state.services.database.fetch_one(
-        "SELECT u.name username, m.md5 map_md5, "
+        "SELECT u.name username, u.id uid, m.md5 map_md5, "
         "m.artist, m.title, m.version, "
         "s.mode, s.n300, s.n100, s.n50, s.ngeki, "
         "s.nkatu, s.nmiss, s.score, s.max_combo, "
@@ -787,17 +788,18 @@ async def api_get_replay(
     replay_data += struct.pack("<q", score_id)
     # NOTE: target practice sends extra mods, but
     # can't submit scores so should not be a problem.
+
     # stream data back to the client
     return Response(
         bytes(replay_data),
         media_type="application/octet-stream",
         headers={
             "Content-Description": "File Transfer",
-            "Content-Disposition": (
-                'attachment; filename="{username} - '
-                "{artist} - {title} [{version}] "
-                '({play_time:%Y-%m-%d}).osr"'
-            ).format(**row),
+            "Content-Disposition": f"""attachment; filename="{
+                    ("{uid} - {artist} - {title} [{version}] ({play_time:%Y-%m-%d}).osr").format(**row)
+                }"; filename*=utf-8''{
+                    quote(("{username} - {artist} - {title} [{version}] ({play_time:%Y-%m-%d}).osr").format(**row))
+                }""",
         },
     )
 
