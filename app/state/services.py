@@ -61,8 +61,13 @@ class Geolocation(TypedDict):
     country: Country
 
 
+class CountryCodeDict(dict):
+    def __getitem__(self, key):
+        return super().get(key, 244)  # 244 is the unknown country code
+
+
 # fmt: off
-country_codes = {
+country_codes = CountryCodeDict({
     "oc": 1,   "eu": 2,   "ad": 3,   "ae": 4,   "af": 5,   "ag": 6,   "ai": 7,   "al": 8,
     "am": 9,   "an": 10,  "ao": 11,  "aq": 12,  "ar": 13,  "as": 14,  "at": 15,  "au": 16,
     "aw": 17,  "az": 18,  "ba": 19,  "bb": 20,  "bd": 21,  "be": 22,  "bf": 23,  "bg": 24,
@@ -95,7 +100,7 @@ country_codes = {
     "vn": 233, "vu": 234, "wf": 235, "ws": 236, "ye": 237, "yt": 238, "rs": 239, "za": 240,
     "zm": 241, "me": 242, "zw": 243, "xx": 244, "a2": 245, "o1": 246, "ax": 247, "gg": 248,
     "im": 249, "je": 250, "bl": 251, "mf": 252,
-}
+})
 # fmt: on
 
 
@@ -149,9 +154,7 @@ def _fetch_geoloc_from_headers(headers: Mapping[str, str]) -> Geolocation | None
 
 def __fetch_geoloc_cloudflare(headers: Mapping[str, str]) -> Geolocation | None:
     """Attempt to fetch geolocation data from cloudflare headers."""
-    if not all(
-        key in headers for key in ("CF-IPCountry", "CF-IPLatitude", "CF-IPLongitude")
-    ):
+    if not all(key in headers for key in ("CF-IPCountry", "CF-IPLatitude", "CF-IPLongitude")):
         return None
 
     country_code = headers["CF-IPCountry"].lower()
@@ -170,9 +173,7 @@ def __fetch_geoloc_cloudflare(headers: Mapping[str, str]) -> Geolocation | None:
 
 def __fetch_geoloc_nginx(headers: Mapping[str, str]) -> Geolocation | None:
     """Attempt to fetch geolocation data from nginx headers."""
-    if not all(
-        key in headers for key in ("X-Country-Code", "X-Latitude", "X-Longitude")
-    ):
+    if not all(key in headers for key in ("X-Country-Code", "X-Latitude", "X-Longitude")):
         return None
 
     country_code = headers["X-Country-Code"].lower()
@@ -245,8 +246,7 @@ async def log_strange_occurrence(obj: object) -> None:
         if response.status_code == 200 and response.read() == b"ok":
             uploaded = True
             log(
-                "Logged strange occurrence to cmyui's server. "
-                "Thank you for your participation! <3",
+                "Logged strange occurrence to cmyui's server. " "Thank you for your participation! <3",
                 Ansi.LBLUE,
             )
         else:
@@ -270,8 +270,7 @@ async def log_strange_occurrence(obj: object) -> None:
             Ansi.LYELLOW,
         )
         log(
-            "It would be greatly appreciated if you could forward this to the "
-            "bancho.py development team. To do so, please email josh@akatsuki.gg",
+            "It would be greatly appreciated if you could forward this to the " "bancho.py development team. To do so, please email josh@akatsuki.gg",
             Ansi.LYELLOW,
         )
 
@@ -370,15 +369,13 @@ async def check_for_dependency_updates() -> None:
         if latest_ver > current_ver:
             updates_available = True
             log(
-                f"{module} has an update available "
-                f"[{current_ver!r} -> {latest_ver!r}]",
+                f"{module} has an update available " f"[{current_ver!r} -> {latest_ver!r}]",
                 Ansi.LMAGENTA,
             )
 
     if updates_available:
         log(
-            "Python modules can be updated with "
-            "`python3.11 -m pip install -U <modules>`.",
+            "Python modules can be updated with " "`python3.11 -m pip install -U <modules>`.",
             Ansi.LMAGENTA,
         )
 
@@ -389,8 +386,7 @@ async def check_for_dependency_updates() -> None:
 async def _get_current_sql_structure_version() -> Version | None:
     """Get the last launched version of the server."""
     res = await app.state.services.database.fetch_one(
-        "SELECT ver_major, ver_minor, ver_micro "
-        "FROM startups ORDER BY datetime DESC LIMIT 1",
+        "SELECT ver_major, ver_minor, ver_micro " "FROM startups ORDER BY datetime DESC LIMIT 1",
     )
 
     if res:
@@ -410,8 +406,7 @@ async def run_sql_migrations() -> None:
         # Migrations have never run before - this is the first time starting the server.
         # We'll insert the current version into the database, so future versions know to migrate.
         await app.state.services.database.execute(
-            "INSERT INTO startups (ver_major, ver_minor, ver_micro, datetime) "
-            "VALUES (:major, :minor, :micro, NOW())",
+            "INSERT INTO startups (ver_major, ver_minor, ver_micro, datetime) " "VALUES (:major, :minor, :micro, NOW())",
             {
                 "major": software_version.major,
                 "minor": software_version.minor,
@@ -473,17 +468,14 @@ async def run_sql_migrations() -> None:
             log(f"Failed: {query}", Ansi.GRAY)
             log(repr(exc))
             log(
-                "SQL failed to update - unless you've been "
-                "modifying sql and know what caused this, "
-                "please contact @cmyui on Discord.",
+                "SQL failed to update - unless you've been " "modifying sql and know what caused this, " "please contact @cmyui on Discord.",
                 Ansi.LRED,
             )
             raise KeyboardInterrupt from exc
     else:
         # all queries executed successfully
         await app.state.services.database.execute(
-            "INSERT INTO startups (ver_major, ver_minor, ver_micro, datetime) "
-            "VALUES (:major, :minor, :micro, NOW())",
+            "INSERT INTO startups (ver_major, ver_minor, ver_micro, datetime) " "VALUES (:major, :minor, :micro, NOW())",
             {
                 "major": software_version.major,
                 "minor": software_version.minor,
