@@ -146,9 +146,7 @@ async def recalculate_user(
 
     total_scores = len(best_scores)
     if not total_scores:
-        await ctx.database.execute(
-            f"REPLACE INTO stats values ({id}, {int(game_mode)}, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0)"
-        )
+        await ctx.database.execute(f"REPLACE INTO stats values ({id}, {int(game_mode)}, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0)")
         return
 
     # calculate new total weighted accuracy
@@ -166,8 +164,7 @@ async def recalculate_user(
         total_hits_sum += " + ngeki + nkatu"
 
     scores_data_all = await ctx.database.fetch_one(
-        f"SELECT sum(score), count(id), sum(time_elapsed), sum({total_hits_sum}) FROM scores "
-        "WHERE userid = :user_id AND mode = :mode ",
+        f"SELECT sum(score), count(id), sum(time_elapsed), sum({total_hits_sum}) FROM scores " "WHERE userid = :user_id AND mode = :mode ",
         {"user_id": id, "mode": game_mode},
     )
 
@@ -238,13 +235,10 @@ async def process_user_chunk(
 
 
 async def recalculate_mode_users(mode: GameMode, ctx: Context) -> None:
-    user_ids = [
-        row["id"] for row in await ctx.database.fetch_all("SELECT id FROM users")
-    ]
+    user_ids = [row["id"] for row in await ctx.database.fetch_all("SELECT id FROM users")]
 
-    for id_chunk in divide_chunks(user_ids, 10):
+    for id_chunk in divide_chunks(user_ids, 100):
         await process_user_chunk(id_chunk, mode, ctx)
-        await asyncio.sleep(0.1)
 
 
 async def recalculate_mode_scores(mode: GameMode, ctx: Context) -> None:
