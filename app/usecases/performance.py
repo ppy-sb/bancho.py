@@ -5,8 +5,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TypedDict
 
-from rosu_pp_py import Beatmap
-from rosu_pp_py import Calculator
+from rosu_pp_py import Beatmap, GameMode, Performance
 
 from app.constants.mods import Mods
 
@@ -75,9 +74,7 @@ def calculate_performances(
     results: list[PerformanceResult] = []
 
     for score in scores:
-        if score.acc and (
-            score.n300 or score.n100 or score.n50 or score.ngeki or score.nkatu
-        ):
+        if score.acc and (score.n300 or score.n100 or score.n50 or score.ngeki or score.nkatu):
             raise ValueError(
                 "Must not specify accuracy AND 300/100/50/geki/katu. Only one or the other.",
             )
@@ -87,19 +84,21 @@ def calculate_performances(
             if score.mods & Mods.NIGHTCORE:
                 score.mods |= Mods.DOUBLETIME
 
-        calculator = Calculator(
-            mode=score.mode,
+        # solve for converted maps calculation
+        calc_bmap.convert(GameMode(score.mode))
+
+        calculator = Performance(
             mods=score.mods or 0,
             combo=score.combo,
-            acc=score.acc,
+            accuracy=score.acc,
             n300=score.n300,
             n100=score.n100,
             n50=score.n50,
             n_geki=score.ngeki,
             n_katu=score.nkatu,
-            n_misses=score.nmiss,
+            misses=score.nmiss,
         )
-        result = calculator.performance(calc_bmap)
+        result = calculator.calculate(calc_bmap)
 
         pp = result.pp
 
@@ -113,7 +112,7 @@ def calculate_performances(
             {
                 "performance": {
                     "pp": pp,
-                    "pp_acc": result.pp_acc,
+                    "pp_acc": result.pp_accuracy,
                     "pp_aim": result.pp_aim,
                     "pp_speed": result.pp_speed,
                     "pp_flashlight": result.pp_flashlight,
