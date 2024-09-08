@@ -20,47 +20,47 @@ sa = ["sqlalchemy (>=1.3,<1.4)"]
 
 [[package]]
 name = "akatsuki-pp-py"
-version = "1.0.0"
+version = "1.0.5"
 description = "osu! difficulty and pp calculation for all modes"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "akatsuki_pp_py-1.0.0-cp310-cp310-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:a3008ce2bc5f80c5691a392b91473f48a82b11811a16820e37ffd3f3bc683111"},
-    {file = "akatsuki_pp_py-1.0.0-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:0fbb1037671a05e85b17c02828df32efb7f1da9b709c4e3d99298934f72d3567"},
-    {file = "akatsuki_pp_py-1.0.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c48afd090e8ca9fb758f4b81e1b4244f6b98a6fe23ffe8dc18739ba9dedc1afd"},
-    {file = "akatsuki_pp_py-1.0.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:30831cec0232e938f37115123aafd0247118401738cc18b9dc617ddbbfe195b4"},
-    {file = "akatsuki_pp_py-1.0.0-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:de9eab0858d1f7f0f94074b61093c65f4888f7feac72892a981fbdd341451556"},
-    {file = "akatsuki_pp_py-1.0.0-cp310-none-win32.whl", hash = "sha256:e563a26a520cb1e37a609d1ac219ceea290d15289ead1831f20df53e27168e44"},
-    {file = "akatsuki_pp_py-1.0.0-cp310-none-win_amd64.whl", hash = "sha256:66fee503206303a89493a30418cfed616067c8501f96f28c449d8fd872d6a371"},
-    {file = "akatsuki_pp_py-1.0.0-cp311-cp311-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:ac4ea01c8ee1107fc8732fbafa5ad81f091ee5532674e2277959b77ea2e0dd59"},
-    {file = "akatsuki_pp_py-1.0.0-cp311-cp311-macosx_10_12_x86_64.whl", hash = "sha256:984ba46d37e0816dd048876f0fff5833f1200b3c0fef4d59464ba2366e4048cc"},
-    {file = "akatsuki_pp_py-1.0.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:2cf8d5e120f54f97df82bf16df67da8d231afcf278d3ac57fe25892c0943e5f6"},
-    {file = "akatsuki_pp_py-1.0.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c5f47c3615b727b797b1bbbd1b79c5a4310b28aae4d6865ac7e82c7e1d93fd51"},
-    {file = "akatsuki_pp_py-1.0.0-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:a34937cf08426df31de13839970e71a01d283f511301449763d9e0a5e140348c"},
-    {file = "akatsuki_pp_py-1.0.0-cp311-none-win32.whl", hash = "sha256:024ecfeb96d5668592a029370c9bf87f686ba8da63c8f1bc2f6676b4fe0c5b3d"},
-    {file = "akatsuki_pp_py-1.0.0-cp311-none-win_amd64.whl", hash = "sha256:8de8570e5feddf8eae0f20e5809624d4468fd7398e4989fc6a71869856ef93b8"},
-    {file = "akatsuki_pp_py-1.0.0-cp37-cp37m-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:0b2fa099c9899ccd4e40485d71c0a24c2b098c448ac2e6cf1a10baf8c06653a1"},
-    {file = "akatsuki_pp_py-1.0.0-cp37-cp37m-macosx_10_12_x86_64.whl", hash = "sha256:3970a28bc8a27ec940e820d2afcf70f464c75cbe08039fb1d1a4a4089ac79206"},
-    {file = "akatsuki_pp_py-1.0.0-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:3afbae2de3caf9800ca1f200dbd3e01d1a33b4c5d83341dd9efaf99b1f76dfc8"},
-    {file = "akatsuki_pp_py-1.0.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:11ae1654fc8f3ab8f8495e9a29709674e2e013aa8334b20e28d66cea246aacc7"},
-    {file = "akatsuki_pp_py-1.0.0-cp37-cp37m-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:79e5c9f1a703be8cb0930332f0e500c3d48e5f30be2cc6f8015897c7b99596b8"},
-    {file = "akatsuki_pp_py-1.0.0-cp37-none-win32.whl", hash = "sha256:b2e384b6389035493ac3a52ebabe5e44e1366d2ec17ad7207980b2273c07df88"},
-    {file = "akatsuki_pp_py-1.0.0-cp37-none-win_amd64.whl", hash = "sha256:4016f72a2e129e72f859614de75773b613d1f780a909751b368d283a3c1196aa"},
-    {file = "akatsuki_pp_py-1.0.0-cp38-cp38-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:afbc7b74239c61848587e98808cc424a9c0e25eb2b674d32715c6cfc95b70bd2"},
-    {file = "akatsuki_pp_py-1.0.0-cp38-cp38-macosx_10_12_x86_64.whl", hash = "sha256:6f7d7e32ac98b7bf5baf4eb86cb294f7d0996ecdd0ebe115e56e2f57092e0e9a"},
-    {file = "akatsuki_pp_py-1.0.0-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ab2a41b2cc5b81358af23350cccca22259dd0961865de65358949dead8e2d856"},
-    {file = "akatsuki_pp_py-1.0.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3fa9a34f90aa399d390f5b62b912fc3eceec92a2eac185186cfd8b73b4cdd4b9"},
-    {file = "akatsuki_pp_py-1.0.0-cp38-cp38-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:9fc4f85da08e95ca6f7e26c17021a9663efd9e5aff8873cdb36a54e9c8f2b457"},
-    {file = "akatsuki_pp_py-1.0.0-cp38-none-win32.whl", hash = "sha256:7fb8c78f81cc78adb3bd4820498b3d5bdba8a4cd086f771e15330ac95d2f9c11"},
-    {file = "akatsuki_pp_py-1.0.0-cp38-none-win_amd64.whl", hash = "sha256:00cfe7cf277016d791f09d0bba010a044ad9e457946ee3a7a78c905d52b7d39b"},
-    {file = "akatsuki_pp_py-1.0.0-cp39-cp39-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:50fb898d88313ade8d1eb759a7692a9e98a516c75279afc7f96e06da2527bf5d"},
-    {file = "akatsuki_pp_py-1.0.0-cp39-cp39-macosx_10_12_x86_64.whl", hash = "sha256:d6220738267bc9aede9ee6909713d185f59e9da013f7e71853657e13149c4f5d"},
-    {file = "akatsuki_pp_py-1.0.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:eb42b509742ffc610d53781f3d4c920ca505c03a21f3f6057f3bd995cc71dea4"},
-    {file = "akatsuki_pp_py-1.0.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6241660678c34ace82699340176c07f19388c75125b33cd34bed7f715a737f1e"},
-    {file = "akatsuki_pp_py-1.0.0-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:afa0832150be10afa7fa5ee381595cd0862ba788efb31e9435e8e4bcfbdb2bc4"},
-    {file = "akatsuki_pp_py-1.0.0-cp39-none-win32.whl", hash = "sha256:e32f5a8fce575c4ab59eb6985f61b58050311d13b3fb0af370b9afa050ba956d"},
-    {file = "akatsuki_pp_py-1.0.0-cp39-none-win_amd64.whl", hash = "sha256:9685c083c66c6697f7aa8c0d108b7009e1f024d2fd13214d663caaacca98a776"},
-    {file = "akatsuki_pp_py-1.0.0.tar.gz", hash = "sha256:acf506cc25ae9ac1aad7f5d02fe208612afad6961031ad2d91242fc863682745"},
+    {file = "akatsuki_pp_py-1.0.5-cp310-cp310-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:6b518b0adf89960b37b52302fda3b8dc20fbf015630de0aa1bbc19d11299d129"},
+    {file = "akatsuki_pp_py-1.0.5-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:1495ac93c753699348e30ec1fdeda68cf652103a07a87b445a405d2014064797"},
+    {file = "akatsuki_pp_py-1.0.5-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:89c10f32b638237d720d014fe9f7184a2f5316bcb7276044156483622cad684c"},
+    {file = "akatsuki_pp_py-1.0.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f7118aea0a3fc827e0c26b8d3e8436e16945d6f58e6f842e5264e1f06abe96a8"},
+    {file = "akatsuki_pp_py-1.0.5-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:546ff2202c843e8497816d7dc5f3e98ddf3496ee11930eac535b2a1822048bd0"},
+    {file = "akatsuki_pp_py-1.0.5-cp310-none-win32.whl", hash = "sha256:68172e9225a81c344c2ab2e5bd305ec57500d0df7b4ad18f549d881b782965a8"},
+    {file = "akatsuki_pp_py-1.0.5-cp310-none-win_amd64.whl", hash = "sha256:7503c0ef2ce8767051039c9ae89e00644fd4ff43eee06734c51ae5dbbbfe9998"},
+    {file = "akatsuki_pp_py-1.0.5-cp311-cp311-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:747cd1ebd257a369d32e0db0169e1ee1af06f1e6d59db2d7b64dafa64b4cacc5"},
+    {file = "akatsuki_pp_py-1.0.5-cp311-cp311-macosx_10_12_x86_64.whl", hash = "sha256:0272cf6789f3413a9db10b617e4628cf110184b8eec6506d2d60a99ee4b8de31"},
+    {file = "akatsuki_pp_py-1.0.5-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:1913382468a4ac18a76ab32462ce0a74c03d5e0a6719199f34dbff5cd4ef37be"},
+    {file = "akatsuki_pp_py-1.0.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e348cb33cb5028512f8d6834c0ffbd113bb17978040664fa067f08f2774d44b7"},
+    {file = "akatsuki_pp_py-1.0.5-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:8a5f9b943a6cc97ce041586fdcc87227920fb74ce8a0867076a0a635a2ba3277"},
+    {file = "akatsuki_pp_py-1.0.5-cp311-none-win32.whl", hash = "sha256:73ed5b0287f3b4c83e14e83a1238382677b5d185572e45e83474f60ab2d38af2"},
+    {file = "akatsuki_pp_py-1.0.5-cp311-none-win_amd64.whl", hash = "sha256:f9951ddc1b79a56f55592f8205c36c687e50c4b5a96fb71e0931d347fad99c23"},
+    {file = "akatsuki_pp_py-1.0.5-cp37-cp37m-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:605744ea0d7ea94606a26211756645e37128368878d6dcb698d0efe412816c70"},
+    {file = "akatsuki_pp_py-1.0.5-cp37-cp37m-macosx_10_12_x86_64.whl", hash = "sha256:99c6cd10cb467415fbff27d4c1bf779f5f7d8af5438ad7b8ee07b9c6bba08b82"},
+    {file = "akatsuki_pp_py-1.0.5-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7751efd54b3a94b1ccbd332412cdf6145e1a0bf8e3eaf479e0524017ec15f419"},
+    {file = "akatsuki_pp_py-1.0.5-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:16d203212272e58cc179a677124ceef2b021d9f2134183f3f5bdfc2a7590603a"},
+    {file = "akatsuki_pp_py-1.0.5-cp37-cp37m-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:e35b77b5e4b222af3c4fcdb643f4231af1074dc09a773e501c75f46fe66c94e9"},
+    {file = "akatsuki_pp_py-1.0.5-cp37-none-win32.whl", hash = "sha256:d4645c3d20df462fa7775de6a2cd4ff1d25fbbf562a0b21d3dd53eda6227872d"},
+    {file = "akatsuki_pp_py-1.0.5-cp37-none-win_amd64.whl", hash = "sha256:c0e28e3767c73960a58904ef3ed1a798a3832bcc88f112387b219778fd828e29"},
+    {file = "akatsuki_pp_py-1.0.5-cp38-cp38-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:e0024c7bc2b2d7966f7bd33e9cb4f588d2c7698257c6b626adb458bdcc315a04"},
+    {file = "akatsuki_pp_py-1.0.5-cp38-cp38-macosx_10_12_x86_64.whl", hash = "sha256:fc59ca5c521c45959284a3d1b41d2ba62fe350ac1df0563d7c9bc989ed44217d"},
+    {file = "akatsuki_pp_py-1.0.5-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b89782c87a9a623dcdcb4ad59319d12ee0c5308d1ecf9d087e7d50f969a21cc1"},
+    {file = "akatsuki_pp_py-1.0.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5b2b14cd8df72811a9bf6c2173601584315131b4a7b54037ac753e0d0a4bd16b"},
+    {file = "akatsuki_pp_py-1.0.5-cp38-cp38-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:92b211192a6e80f16e0ae46030d1aaa8ec64acee275d3f77ab537e3ceb3ef5ad"},
+    {file = "akatsuki_pp_py-1.0.5-cp38-none-win32.whl", hash = "sha256:6a3bbee78b93d99a4fbaecf1a1cfca2f040193ecad1bddcf24b2e052285cf239"},
+    {file = "akatsuki_pp_py-1.0.5-cp38-none-win_amd64.whl", hash = "sha256:b74a727c18dd86cc665563a6146b960427c3d25b0b96b9767ad5a274bfef0c4a"},
+    {file = "akatsuki_pp_py-1.0.5-cp39-cp39-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:28e45d694df23d99a770f535b52e8e40972ada2cc4379c6c43df67949504c888"},
+    {file = "akatsuki_pp_py-1.0.5-cp39-cp39-macosx_10_12_x86_64.whl", hash = "sha256:6ccf1d16e19c6f1e8829b7bb86841621ba30881e0bd41b2dd6d8b698495f6f12"},
+    {file = "akatsuki_pp_py-1.0.5-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:faaa58b19353bff70563b4fc731f51bcd55f55df0b37ec702af669730b0368cb"},
+    {file = "akatsuki_pp_py-1.0.5-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5e6bc462806480cbc1883052f3933746eb1b8631a4acf3ecf3d1802d44165aaf"},
+    {file = "akatsuki_pp_py-1.0.5-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:334a6e7cb19dd820c6536b971f17be2d23718001fc1675ebdf9a9d83474c0b22"},
+    {file = "akatsuki_pp_py-1.0.5-cp39-none-win32.whl", hash = "sha256:a33b2f5954823fab8316ac8b5da8e633b9c944346ba2c441353624c0c884619c"},
+    {file = "akatsuki_pp_py-1.0.5-cp39-none-win_amd64.whl", hash = "sha256:1d16cd61dc763ef8f6d6e10427e71c3c923608474969914f376685a0701600af"},
+    {file = "akatsuki_pp_py-1.0.5.tar.gz", hash = "sha256:6368629844d9f1edea8cbc86c3310449150ba7af6e1a3c70cc7053cf29021394"},
 ]
 
 [[package]]
@@ -2056,4 +2056,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "3a50fa68788902b7fc92fcfe74441be24f98acd5d1532ebb24926c1a70768787"
+content-hash = "00691722c7bcd111ad996bb56ac5fe0c771c2e239aacf5bfb2ca248f4d1a3e70"

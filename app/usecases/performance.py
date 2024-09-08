@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import TypedDict
+from typing import Dict, TypedDict
 
 from rosu_pp_py import Beatmap, GameMode, Performance
 
@@ -56,6 +56,18 @@ class PerformanceResult(TypedDict):
     difficulty: DifficultyRating
 
 
+gm_dict: dict[int, GameMode] = {
+    0: GameMode.Osu,
+    1: GameMode.Taiko,
+    2: GameMode.Catch,
+    3: GameMode.Mania,
+}
+
+
+def get_mode(mode: int) -> GameMode:
+    return gm_dict[mode]
+
+
 def calculate_performances(
     osu_file_path: str,
     scores: Iterable[ScoreParams],
@@ -85,19 +97,22 @@ def calculate_performances(
                 score.mods |= Mods.DOUBLETIME
 
         # solve for converted maps calculation
-        calc_bmap.convert(GameMode(score.mode))
+        calc_bmap.convert(get_mode(score.mode))
 
-        calculator = Performance(
-            mods=score.mods or 0,
-            combo=score.combo,
-            accuracy=score.acc,
-            n300=score.n300,
-            n100=score.n100,
-            n50=score.n50,
-            n_geki=score.ngeki,
-            n_katu=score.nkatu,
-            misses=score.nmiss,
-        )
+        score_params = {
+            "mods": score.mods or 0,
+            "combo": score.combo,
+            "accuracy": score.acc,
+            "n300": score.n300,
+            "n100": score.n100,
+            "n50": score.n50,
+            "n_geki": score.ngeki,
+            "n_katu": score.nkatu,
+            "misses": score.nmiss,
+        }
+
+        score_params = {k: v for k, v in score_params.items() if v is not None}
+        calculator = Performance(**score_params)
         result = calculator.calculate(calc_bmap)
 
         pp = result.pp
