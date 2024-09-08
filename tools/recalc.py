@@ -37,6 +37,12 @@ except ModuleNotFoundError:
 
 T = TypeVar("T")
 
+gm_dict: dict[int, rosu_pp_py.GameMode] = {
+    0: rosu_pp_py.GameMode.Osu,
+    1: rosu_pp_py.GameMode.Taiko,
+    2: rosu_pp_py.GameMode.Catch,
+    3: rosu_pp_py.GameMode.Mania,
+}
 
 DEBUG = False
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
@@ -75,7 +81,7 @@ async def recalculate_score(
         score_obj.nkatu = score["nkatu"]
         new_accuracy = score_obj.calculate_accuracy()
 
-        beatmap.convert(rosu_pp_py.GameMode(GameMode(score["mode"]).as_vanilla))
+        beatmap.convert(gm_dict[GameMode(score["mode"]).as_vanilla])
 
         calculator = Performance(
             mods=score["mods"],
@@ -273,6 +279,13 @@ async def main(argv: Sequence[str] | None = None) -> int:
     )
 
     parser.add_argument(
+        "-d",
+        "--debug",
+        help="Enable debug logging",
+        action="store_true",
+    )
+
+    parser.add_argument(
         "--scores",
         help="Recalculate scores",
         action="store_true",
@@ -307,10 +320,10 @@ async def main(argv: Sequence[str] | None = None) -> int:
     for mode in args.mode:
         mode = GameMode(int(mode))
 
-        if not args.no_scores:
+        if args.scores:
             await recalculate_mode_scores(mode, ctx)
 
-        if not args.no_stats:
+        if args.stats:
             await recalculate_mode_users(mode, ctx)
 
     await app.state.services.http_client.aclose()
