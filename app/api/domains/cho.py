@@ -724,7 +724,9 @@ async def handle_osu_login_request(
         if osu_version.date not in allowed_client_versions:
             return {
                 "osu_token": "invalid-request",
-                "response_body": b"",
+                "response_body": app.packets.notification(
+                    "Your osu! client is too old. Please update your osu! client."
+                ),
             }
 
     running_under_wine = login_data["adapters_str"] == "runningunderwine"
