@@ -150,6 +150,32 @@ class CommandSet:
         return _name
 
 
+def help_pure(
+    ctx: Context,
+    cmd_or_sets: list[Command | CommandSet],
+    prefix: str = app.settings.COMMAND_PREFIX,
+) -> str:
+    """Show all documented streamer commands the player can access."""
+    cb = []
+    cmds = []
+
+    for cmd in cmd_or_sets:
+        match cmd:
+            case Command():
+                if not cmd.doc or ctx.player.priv & cmd.priv != cmd.priv:
+                    # no doc, or insufficient permissions.
+                    continue
+                if cmd.callback in cb:
+                    continue
+
+                cmds.append(f"{prefix} {cmd.triggers[0]}: {cmd.doc}")
+                cb.append(cmd.callback)
+            case CommandSet():
+                cmds.append(f"{prefix} {cmd.trigger}: {cmd.doc}")
+
+    return "\n".join(cmds)
+
+
 mp_commands = CommandSet("mp", "Multiplayer commands.")
 pool_commands = CommandSet("pool", "Mappool commands.")
 clan_commands = CommandSet("clan", "Clan commands.")
@@ -2615,25 +2641,3 @@ async def process_commands_pure(
                 )
 
     return (None, None)
-
-
-def help_pure(
-    ctx: Context,
-    cmd_or_sets: list[Command | CommandSet],
-    prefix: str = app.settings.COMMAND_PREFIX,
-) -> str:
-    """Show all documented streamer commands the player can access."""
-    cmds = []
-
-    for cmd in cmd_or_sets:
-        match cmd:
-            case Command():
-                if not cmd.doc or ctx.player.priv & cmd.priv != cmd.priv:
-                    # no doc, or insufficient permissions.
-                    continue
-
-                cmds.append(f"{prefix} {cmd.triggers[0]}: {cmd.doc}")
-            case CommandSet():
-                cmds.append(f"{prefix} {cmd.trigger}: {cmd.doc}")
-
-    return "\n".join(cmds)
