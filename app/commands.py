@@ -180,7 +180,7 @@ mp_commands = CommandSet("mp", "Multiplayer commands.")
 pool_commands = CommandSet("pool", "Mappool commands.")
 clan_commands = CommandSet("clan", "Clan commands.")
 
-regular_commands = []
+regular_commands: list[Command] = []
 command_sets = [
     mp_commands,
     pool_commands,
@@ -2539,6 +2539,8 @@ async def process_commands(
 
     # case-insensitive triggers
     trigger = trigger.lower()
+
+    commands: Sequence[CommandSet | Command]
 
     # check if any command sets match.
     commands: list[Command] = []
