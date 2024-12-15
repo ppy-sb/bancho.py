@@ -219,6 +219,16 @@ async def api_get_player_info(
     if scope in ("info", "all"):
         api_data["info"] = dict(user_info)
 
+        # fetch user's clan info if they are in a clan
+        clan: clans_repo.Clan | None = None
+        if user_info["clan_id"]:
+            clan = await clans_repo.fetch_one(id=user_info["clan_id"])
+        api_data["clan"] = {
+            "id": clan["id"],
+            "name": clan["name"],
+            "tag": clan["tag"],
+        } if clan is not None else None
+
     # fetch user's stats if requested
     if scope in ("stats", "all"):
         api_data["stats"] = {}
