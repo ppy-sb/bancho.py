@@ -26,7 +26,6 @@ from fastapi.responses import HTMLResponse
 import app.packets
 import app.settings
 import app.state
-from app.usecases import anticheat
 import app.usecases.performance
 import app.utils
 from app import commands
@@ -62,11 +61,13 @@ from app.packets import BanchoPacketReader
 from app.packets import BasePacket
 from app.packets import ClientPackets
 from app.packets import LoginFailureReason
-from app.repositories import client_hashes as client_hashes_repo, scores_suspicion
+from app.repositories import client_hashes as client_hashes_repo
 from app.repositories import ingame_logins as logins_repo
 from app.repositories import mail as mail_repo
+from app.repositories import scores_suspicion
 from app.repositories import users as users_repo
 from app.state import services
+from app.usecases import anticheat
 from app.usecases.performance import ScoreParams
 
 OSU_API_V2_CHANGELOG_URL = "https://osu.ppy.sh/api/v2/changelog"
@@ -74,7 +75,7 @@ OSU_API_V2_CHANGELOG_URL = "https://osu.ppy.sh/api/v2/changelog"
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
 DISK_CHAT_LOG_FILE = ".data/logs/chat.log"
 
-PPYSB_CLIENT_VERSION = "b20210125.1 SB Edition.x01" # (ppysb feature)
+PPYSB_CLIENT_VERSION = "b20210125.1 SB Edition.x01"  # (ppysb feature)
 
 BASE_DOMAIN = app.settings.DOMAIN
 
@@ -650,14 +651,13 @@ async def handle_osu_login_request(
       -8: requires verification
       other: valid id, logged in
     """
-    
 
     # parse login data (ppysb feature)
     login_data = parse_login_data(body)
     bypass = login_data["osu_version"] == PPYSB_CLIENT_VERSION
 
     # perform some validation & further parsing on the data (ppysb feature)
-    
+
     if bypass:
         osu_version = OsuVersion(
             date=date(
@@ -987,30 +987,12 @@ async def handle_osu_login_request(
 
         # the player may have been sent mail while offline,
         # enqueue any messages from their respective authors.
-        # mail_rows = await db_conn.fetch_all(
-        #     "SELECT m.`msg`, m.`time`, m.`from_id`, "
-        #     "(SELECT name FROM users WHERE id = m.`from_id`) AS `from`, "
-        #     "(SELECT name FROM users WHERE id = m.`to_id`) AS `to` "
-        #     "FROM `mail` m WHERE m.`to_id` = :to AND m.`read` = 0",
-        #     {"to": player.id},
-        # )
-        mail_rows = None
-
-        sent_to: set[int] = set()
+        mail_rows = await mail_repo.fetch_all_mail_to_user(
+            user_id=player.id,
+            read=False,
+        )
 
         for msg in mail_rows:
-            # Add "Unread messages" header as the first message
-            # for any given sender, to make it clear that the
-            # messages are coming from the mail system.
-            if msg["from_id"] not in sent_to:
-                data += app.packets.send_message(
-                    sender=msg["from_name"],
-                    msg="Unread messages",
-                    recipient=msg["to_name"],
-                    sender_id=msg["from_id"],
-                )
-                sent_to.add(msg["from_id"])
-
             msg_time = datetime.fromtimestamp(msg["time"])
             data += app.packets.send_message(
                 sender=msg["from_name"],
