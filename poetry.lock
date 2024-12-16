@@ -1573,7 +1573,7 @@ develop = false
 type = "git"
 url = "https://github.com/ppy-sb/rosu-pp-py"
 reference = "HEAD"
-resolved_reference = "f8f147412d4cfadb8b296a1ac7535d7383368ab7"
+resolved_reference = "119dfd926e7d18cff849fe706b185eaf11643fee"
 
 [[package]]
 name = "scipy"
