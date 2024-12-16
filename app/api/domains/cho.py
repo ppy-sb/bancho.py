@@ -994,38 +994,19 @@ async def handle_osu_login_request(
 
         # the player may have been sent mail while offline,
         # enqueue any messages from their respective authors.
-        # mail_rows = await db_conn.fetch_all(
-        #     "SELECT m.`msg`, m.`time`, m.`from_id`, "
-        #     "(SELECT name FROM users WHERE id = m.`from_id`) AS `from`, "
-        #     "(SELECT name FROM users WHERE id = m.`to_id`) AS `to` "
-        #     "FROM `mail` m WHERE m.`to_id` = :to AND m.`read` = 0",
-        #     {"to": player.id},
-        # )
-        mail_rows = None
+        mail_rows = await mail_repo.fetch_all_mail_to_user(
+            user_id=player.id,
+            read=False,
+        )
 
-        if mail_rows:
-            sent_to: set[int] = set()
-
-            for msg in mail_rows:
-                # Add "Unread messages" header as the first message
-                # for any given sender, to make it clear that the
-                # messages are coming from the mail system.
-                if msg["from_id"] not in sent_to:
-                    data += app.packets.send_message(
-                        sender=msg["from_name"],
-                        msg="Unread messages",
-                        recipient=msg["to_name"],
-                        sender_id=msg["from_id"],
-                    )
-                    sent_to.add(msg["from_id"])
-
-                msg_time = datetime.fromtimestamp(msg["time"])
-                data += app.packets.send_message(
-                    sender=msg["from_name"],
-                    msg=f'[{msg_time:%a %b %d @ %H:%M%p}] {msg["msg"]}',
-                    recipient=msg["to_name"],
-                    sender_id=msg["from_id"],
-                )
+        for msg in mail_rows:
+            msg_time = datetime.fromtimestamp(msg["time"])
+            data += app.packets.send_message(
+                sender=msg["from_name"],
+                msg=f'[{msg_time:%a %b %d @ %H:%M%p}] {msg["msg"]}',
+                recipient=msg["to_name"],
+                sender_id=msg["from_id"],
+            )
 
         if not player.priv & Privileges.VERIFIED:
             # this is the player's first login, verify their
