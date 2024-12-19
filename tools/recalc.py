@@ -93,14 +93,13 @@ async def recalculate_score(
             n100=score["n100"],
             n50=score["n50"],
             misses=score["nmiss"],
+            lazer=False,
         )
         attrs = calculator.calculate(beatmap)
 
         new_pp: float = attrs.pp
-        if math.isnan(new_pp) or math.isinf(new_pp):
+        if math.isnan(new_pp) or math.isinf(new_pp) or new_pp > 9999:
             new_pp = 0.0
-
-        new_pp = min(new_pp, 9999.999)
 
         await ctx.database.execute(
             "UPDATE scores SET pp = :new_pp, acc = :new_acc WHERE id = :id",
