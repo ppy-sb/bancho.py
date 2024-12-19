@@ -109,6 +109,7 @@ def calculate_performances(
             "n_geki": score.ngeki,
             "n_katu": score.nkatu,
             "misses": score.nmiss,
+            "lazer": False,
         }
 
         score_params = {k: v for k, v in score_params.items() if v is not None}
@@ -117,7 +118,7 @@ def calculate_performances(
 
         pp = result.pp
 
-        if math.isnan(pp) or math.isinf(pp):
+        if math.isnan(pp) or math.isinf(pp) or pp > 9999:
             # TODO: report to logserver
             pp = 0.0
         else:
