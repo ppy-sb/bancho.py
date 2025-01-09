@@ -153,7 +153,9 @@ async def recalculate_user(
 
         total_scores = len(best_scores)
         if not total_scores:
-            await ctx.database.execute(f"REPLACE INTO stats values ({id}, {int(game_mode)}, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0)")
+            await ctx.database.execute(
+                f"REPLACE INTO stats values ({id}, {int(game_mode)}, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0)"
+            )
             return
 
         # calculate new total weighted accuracy
@@ -171,7 +173,8 @@ async def recalculate_user(
             total_hits_sum += " + ngeki + nkatu"
 
         scores_data_all = await ctx.database.fetch_one(
-            f"SELECT sum(score), count(id), sum(time_elapsed), sum({total_hits_sum}) FROM scores " "WHERE userid = :user_id AND mode = :mode ",
+            f"SELECT sum(score), count(id), sum(time_elapsed), sum({total_hits_sum}) FROM scores "
+            "WHERE userid = :user_id AND mode = :mode ",
             {"user_id": id, "mode": game_mode},
         )
 
@@ -246,7 +249,9 @@ async def process_user_chunk(
 
 
 async def recalculate_mode_users(mode: GameMode, ctx: Context) -> None:
-    user_ids = [row["id"] for row in await ctx.database.fetch_all("SELECT id FROM users")]
+    user_ids = [
+        row["id"] for row in await ctx.database.fetch_all("SELECT id FROM users")
+    ]
 
     for id_chunk in divide_chunks(user_ids, 100):
         await process_user_chunk(id_chunk, mode, ctx)
@@ -275,36 +280,61 @@ async def recalculate_mode_scores(mode: GameMode, ctx: Context) -> None:
         await process_score_chunk(score_chunk, ctx)
 
 
-async def recalculate_score_status(mode: GameMode, ctx: Context) -> None:
-    pairs = await ctx.database.fetch_all(
-        "SELECT DISTINCT map_md5, userid, mode FROM scores WHERE status > 0 AND mode = :mode",
-        {"mode": mode},
+async def recalculate_score_status(modes: list[GameMode], ctx: Context) -> None:
+    await ctx.database.execute(
+        f"""--sql
+        WITH
+            MAX AS (
+                SELECT
+                userid,
+                mode,
+                -- max(score) AS max_score,
+                max(pp) AS max_pp
+                FROM
+                scores
+                WHERE score > 0
+                GROUP BY
+                userid,
+                mode,
+                map_md5
+            ),
+            -- MAX_SCORES AS (
+            --     SELECT
+            --     id
+            --     FROM
+            --     scores s2
+            --     INNER JOIN MAX ON s2.userid = MAX.userid
+            --     AND s2.mode = MAX.mode
+            --     AND s2.score = MAX.max_score
+            -- ),
+            MAX_PPS AS (
+                SELECT
+                id
+                FROM
+                scores s2
+                INNER JOIN MAX ON s2.userid = MAX.userid
+                AND s2.mode = MAX.mode
+                AND s2.pp = MAX.max_pp
+                WHERE s2.pp > 0
+            )
+
+
+        UPDATE scores
+        SET
+        status = CASE
+            WHEN id IN (
+            select
+                id
+            from
+                MAX_PPS
+            ) THEN 2
+            WHEN status = 2 THEN 1
+            ELSE status
+        END
+        WHERE mode IN (:mode_list)
+    """,
+        {"mode_list": [mode.value for mode in modes]},
     )
-
-    for pair in pairs:
-        scores = await ctx.database.fetch_all(
-            "SELECT id, status, pp, play_time FROM scores "
-            "WHERE map_md5 = :map_md5 AND userid = :userid AND mode = :mode AND status > 0 "
-            "ORDER BY pp DESC",
-            pair,
-        )
-
-        best = sorted(scores, key=lambda x: (-x["pp"], x["play_time"]))[0]
-
-        if best["status"] != 2:
-            if DEBUG:
-                print(f"Status mismatch on score {best['id']}")
-
-            await ctx.database.execute(
-                "UPDATE scores SET status = 1 "
-                "WHERE map_md5 = :map_md5 AND userid = :userid AND mode = :mode AND status > 0",
-                pair,
-            )
-
-            await ctx.database.execute(
-                "UPDATE scores SET status = 2 WHERE id = :id",
-                {"id": best["id"]},
-            )
 
     return
 
@@ -360,15 +390,16 @@ async def main(argv: Sequence[str] | None = None) -> int:
 
     ctx = Context(db, redis)
 
-    for mode in args.mode:
-        mode = GameMode(int(mode))
+    modes = [GameMode(int(mode)) for mode in args.mode]
 
+    for mode in modes:
         if args.scores:
             await recalculate_mode_scores(mode, ctx)
 
-        if not args.no_status:
-            await recalculate_score_status(mode, ctx)
+    if not args.no_status:
+        await recalculate_score_status(modes, ctx)
 
+    for mode in modes:
         if args.stats:
             await recalculate_mode_users(mode, ctx)
 
