@@ -92,6 +92,51 @@ async def sb_mp_fix(ctx: Context) -> str:
     return "\n".join(res)
 
 
+sb_mp_room_commands = sb_mp_commands.subcommand(
+    CommandSet("room", "sb mp room commands.")
+)
+
+
+@sb_mp_room_commands.add(NORMAL_PRIV, aliases=["", "h"])
+async def sb_mp_room_help(ctx: Context) -> str:
+    """Show this message."""
+    return help_pure(
+        ctx,
+        [*sb_mp_room_commands.commands, *sb_mp_room_commands.subcommands],
+        app.settings.COMMAND_PREFIX + "sb mp room",
+    )
+
+
+@sb_mp_room_commands.add(Privileges.DEVELOPER)
+@sb_mp_room_commands.add(Privileges.ADMINISTRATOR)
+@sb_mp_room_commands.add(Privileges.MODERATOR)
+async def sb_mp_room_remove(ctx: Context) -> str:
+    if len(ctx.args) < 1:
+        return "Invalid syntax: !streamer manage remove <room id>"
+
+    try:
+        room_id = int(ctx.args[0])
+
+        room = app.state.sessions.matches[room_id]
+
+        if room is None:
+            return "Room not found."
+
+        app.state.sessions.matches.remove(room)
+
+        lobby = app.state.sessions.channels.get_by_name("#lobby")
+        if lobby:
+            lobby.enqueue(app.packets.dispose_match(room_id))
+
+        for slot in room.slots:
+            slot.reset()
+
+        return "Room removed."
+
+    except ValueError:
+        return "Unable to parse room id: !streamer manage remove <room id>"
+
+
 sb_user_commands = sb_commands.subcommand(CommandSet("user", "sb user commands."))
 
 
