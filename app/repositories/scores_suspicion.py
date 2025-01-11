@@ -1,19 +1,20 @@
-
 from datetime import datetime
 from enum import StrEnum
 import json
 from typing import TypedDict, cast
-import app
+import app.state
 from app.repositories import Base
 from sqlalchemy import insert
 from sqlalchemy import select
 from sqlalchemy import Column, JSON, String, DateTime, BigInteger, Enum, Boolean
+
 
 class SuspicionKind(StrEnum):
     PPCAP = "ppcap"
     REPLAY = "replay"
     HASH = "hash"
     REPORT = "report"
+
 
 class ScoresSuspicionTable(Base):
     __tablename__ = "scores_suspicion"
@@ -25,6 +26,7 @@ class ScoresSuspicionTable(Base):
     detail = Column(JSON, nullable=True)
     created_at = Column(DateTime, nullable=False)
 
+
 class ScoresSuspicion(TypedDict):
     score_id: int
     kind: str
@@ -32,6 +34,7 @@ class ScoresSuspicion(TypedDict):
     is_checked: bool
     detail: dict
     created_at: datetime
+
 
 READ_PARAMS = (
     ScoresSuspicionTable.score_id,
@@ -42,7 +45,10 @@ READ_PARAMS = (
     ScoresSuspicionTable.created_at,
 )
 
-async def create(score_id: int, kind: SuspicionKind, reason: str, detail: dict) -> ScoresSuspicion:
+
+async def create(
+    score_id: int, kind: SuspicionKind, reason: str, detail: dict
+) -> ScoresSuspicion:
     """Create a new score suspicion."""
     insert_stmt = insert(ScoresSuspicionTable).values(
         score_id=score_id,
@@ -50,14 +56,11 @@ async def create(score_id: int, kind: SuspicionKind, reason: str, detail: dict) 
         reason=reason,
         is_checked=False,
         detail=json.dumps(detail),
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
     await app.state.services.database.execute(insert_stmt)
 
-    select_stmt = (
-        select(*READ_PARAMS)
-        .where(ScoresSuspicionTable.score_id == score_id)
-    )
+    select_stmt = select(*READ_PARAMS).where(ScoresSuspicionTable.score_id == score_id)
     _suspicion = await app.state.services.database.fetch_one(select_stmt)
     assert _suspicion is not None
     return cast(ScoresSuspicion, _suspicion)
@@ -69,7 +72,5 @@ async def has_suspicion(user_id) -> bool:
         JOIN scores sc ON su.score_id=sc.id \
         JOIN users us ON sc.userid=us.id \
         WHERE us.id=:user_id",
-        {"user_id": user_id}
+        {"user_id": user_id},
     )
-    
-    
