@@ -675,7 +675,7 @@ async def handle_osu_login_request(
             revision=None,
             stream=OsuStream("ppysb"),
         )
-    if not bypass:
+    else:
         match = regexes.OSU_VERSION.match(login_data["osu_version"])
         if match is None:
             return {
@@ -736,7 +736,7 @@ async def handle_osu_login_request(
         return {
             "osu_token": "empty-adapters",
             "response_body": (
-                app.packets.user_id(-1)
+                app.packets.login_reply(-1)
                 + app.packets.notification("Please restart your osu! and try again.")
             ),
         }
