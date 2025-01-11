@@ -57,7 +57,6 @@ from app.objects.beatmap import Beatmap
 from app.objects.beatmap import RankedStatus
 from app.objects.player import OsuStream, Player
 from app.objects.beatmap import ensure_osu_file_is_available
-from app.objects.player import Privileges
 from app.objects.score import Grade
 from app.objects.score import Score
 from app.objects.score import SubmissionStatus
@@ -535,7 +534,7 @@ async def osuSubmitModularSelector(
     # through but ac'd if not found?
     # TODO: validate token format
     # TODO: save token in the database
-    token: str | None = Header(None), # ppysb feature: none when using ppysb client
+    token: str | None = Header(None),  # ppysb feature: none when using ppysb client
     # TODO: do ft & st contain pauses?
     exited_out: bool = Form(..., alias="x"),
     fail_time: int = Form(..., alias="ft"),
@@ -604,7 +603,16 @@ async def osuSubmitModularSelector(
     ## perform checksum validation
 
     asyncio.ensure_future(
-        anticheat.validate_checksum(unique_ids, osu_version, client_hash_decoded, storyboard_md5, bmap_md5, updated_beatmap_hash, player, score)
+        anticheat.validate_checksum(
+            unique_ids,
+            osu_version,
+            client_hash_decoded,
+            storyboard_md5,
+            bmap_md5,
+            updated_beatmap_hash,
+            player,
+            score,
+        )
     )
 
     # we should update their activity no matter
@@ -1182,8 +1190,8 @@ async def get_leaderboard_scores(
     if is_streaming:
         for score in score_rows:
             # we replaced the username with that user's userid, also, return a fake userid to hide avatar.
-            score['name'] = f"Player{str(score['userid'])}"
-            score['userid'] = -1     
+            score["name"] = f"Player{str(score['userid'])}"
+            score["userid"] = -1
 
     return score_rows, personal_best_score_row
 
@@ -1295,14 +1303,14 @@ async def getScores(
 
     if app.state.services.datadog:
         app.state.services.datadog.increment("bancho.leaderboards_served")
-        
+
     ### ppysb feature begin
 
     # if bmap.status < RankedStatus.Ranked:
-        # only show leaderboards for ranked,
-        # approved, qualified, or loved maps.
-        # return f"{int(bmap.status)}|false".encode()
-        
+    # only show leaderboards for ranked,
+    # approved, qualified, or loved maps.
+    # return f"{int(bmap.status)}|false".encode()
+
     ### ppysb feature end
 
     # fetch scores & personal best
@@ -1330,9 +1338,9 @@ async def getScores(
     map_avg_rating = sum(ratings) / len(ratings) if ratings else 0.0
 
     ## construct response for osu! client
-    
+
     ### ppysb feature begin
-    
+
     response_status = bmap.status
     if bmap.status < RankedStatus.Ranked:
         response_status = RankedStatus.Approved
@@ -1345,7 +1353,7 @@ async def getScores(
         # TODO: server side beatmap offsets
         f"0\n{bmap.full_name}\n{map_avg_rating}",
     ]
-    
+
     ### ppysb feature end
 
     if not score_rows:
@@ -1579,13 +1587,13 @@ async def get_screenshot(
         path=screenshot_path,
         media_type=media_type,
     )
-    
+
+
 geo_cache: dict = {}
-    
+
+
 async def get_osz_url(
-    headers: Mapping[str, str],
-    beatmapset_id: str,
-    no_video: bool
+    headers: Mapping[str, str], beatmapset_id: str, no_video: bool
 ) -> str:
     ip_address = app.state.services.ip_resolver.get_ip(headers)
     geo_country = geo_cache.get(ip_address)
@@ -1599,7 +1607,6 @@ async def get_osz_url(
         return f"https://dl.sayobot.cn/beatmaps/download/{prefix}/{beatmapset_id}"
     query_str = f"{beatmapset_id}?n={int(not no_video)}"
     return f"{app.settings.MIRROR_DOWNLOAD_ENDPOINT}/{query_str}"
-    
 
 
 @router.get("/d/{map_set_id}")
