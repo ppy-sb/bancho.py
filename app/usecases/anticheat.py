@@ -1,8 +1,9 @@
+from asyncio import Task
 from datetime import datetime
 import hashlib
 import struct
-from typing import Optional, Union
-from circleguard import Circleguard, ReplayString
+from typing import Optional, Union, Any
+from circleguard import Circleguard, ReplayString, Snap
 from slider import Beatmap
 
 from app import settings
@@ -40,11 +41,24 @@ frametime_limition = 14
 vanilla_ur_limition = 60
 snaps_limition = 20
 
-def _parse_score(score: Score) -> Union[ReplayString, Optional[Beatmap]]:
+
+async def ignore_error(job: Task[Any]) -> None:
+    try:
+        await job
+    except Exception as e:
+        log(str(e), Ansi.RED)
+
+
+def _parse_score(
+    score: Score,
+) -> tuple[ReplayString, Optional[Beatmap]]:
+    assert score.bmap, "Missing beatmap info, skipped."
+    assert score.player, "Missing player info, skipped."
+
     replay_file = REPLAYS_PATH / f"{score.id}.osr"
     beatmap_file = BEATMAPS_PATH / f"{score.bmap.id}.osu"
     raw_replay_data = replay_file.read_bytes()
-    
+
     replay_md5 = hashlib.md5(
         "{}p{}o{}o{}t{}a{}r{}e{}y{}o{}u{}{}{}".format(
             score.n100 + score.n300,
@@ -98,21 +112,46 @@ def _parse_score(score: Score) -> Union[ReplayString, Optional[Beatmap]]:
         cg_beatmap = Beatmap.from_path(beatmap_file)
         return circleguard.ReplayString(replay_data), cg_beatmap
     except ValueError:
-        log(f"Failed to load beatmap ({beatmap_file}), skipped.", Ansi.RED)
+        raise Exception(f"Failed to load beatmap ({beatmap_file}), skipped.")
 
-async def _save_suspicion(player: Player, score: Score, kind: SuspicionKind, reason: str, detail: dict):
+
+async def _save_suspicion(
+    player: Player,
+    score: Score,
+    kind: SuspicionKind,
+    reason: str,
+    detail: dict[Any, Any],
+) -> None:
+
+    assert score.id, "AC: Score should have id."
+
     # PP threshold exceeded but player is not whitelisted.
     if kind == SuspicionKind.PPCAP and not player.priv & Privileges.WHITELISTED:
-        await player.restrict(app.state.sessions.bot, "suspicion detected, temporally restrict the player.")
+        await player.restrict(
+            app.state.sessions.bot,
+            "suspicion detected, temporally restrict the player.",
+        )
     await scores_suspicion.create(score.id, kind, reason, detail)
 
-async def validate_checksum(unique_ids: str, osu_version: str, client_hash_decoded: str, storyboard_md5: str, bmap_md5: str, updated_beatmap_hash: str, player: Player, score: Score):
+
+async def validate_checksum(
+    unique_ids: str,
+    osu_version: str,
+    client_hash_decoded: str,
+    storyboard_md5: str,
+    bmap_md5: str,
+    updated_beatmap_hash: str,
+    player: Player,
+    score: Score,
+) -> None:
     unique_id1, unique_id2 = unique_ids.split("|", maxsplit=1)
     unique_id1_md5 = hashlib.md5(unique_id1.encode()).hexdigest()
     unique_id2_md5 = hashlib.md5(unique_id2.encode()).hexdigest()
 
+    server_score_checksum = ""
+
     try:
-        assert player.client_details is not None
+        assert player.client_details is not None, "AC: missing client details."
 
         if osu_version != f"{player.client_details.osu_version.date:%Y%m%d}":
             raise ValueError("osu! version mismatch")
@@ -146,49 +185,76 @@ async def validate_checksum(unique_ids: str, osu_version: str, client_hash_decod
             raise ValueError(
                 f"beatmap hash mismatch ({bmap_md5} != {updated_beatmap_hash})",
             )
-            
+
     except AssertionError as error:
         log(f"invalid player client_details ({player.name})", Ansi.RED)
 
     except ValueError as error:
         detail = {
-            'unique_id1': unique_id1,
-            'unique_id2': unique_id2,
-            'unique_id1_md5': unique_id1_md5,
-            'unique_id2_md5': unique_id2_md5,
-            'osu_version': osu_version,
-            'client_hash_decoded': client_hash_decoded,
+            "unique_id1": unique_id1,
+            "unique_id2": unique_id2,
+            "unique_id1_md5": unique_id1_md5,
+            "unique_id2_md5": unique_id2_md5,
+            "osu_version": osu_version,
+            "client_hash_decoded": client_hash_decoded,
             "client_checksum": score.client_checksum,
             "server_checksum": server_score_checksum,
         }
-        
+
         await _save_suspicion(player, score, SuspicionKind.HASH, error.args[0], detail)
-    
-async def validate_replay(player: Player, score: Score):
+
+
+async def validate_replay(player: Player, score: Score) -> None:
     try:
         has_relax = score.mods & Mods.RELAX or score.mods & Mods.AUTOPILOT
-        replay, beatmap = _parse_score(score)
+        (replay, beatmap) = _parse_score(score)
+
         frametime = circleguard.frametime(replay)
         ur = circleguard.ur(replay, beatmap=beatmap) if not has_relax else 0
-        snaps = circleguard.snaps(replay, beatmap=beatmap)
-        detail = {
-            'frametime': frametime,
-            'ur': ur,
-            'snaps': len(snaps)
-        }
+        # circleguard.snaps returns list[] (according to doc) but typed as Iterable[], just to make linter quite
+        snaps = list(circleguard.snaps(replay, beatmap=beatmap))
+
+        detail = {"frametime": frametime, "ur": ur, "snaps": len(snaps)}
         if (not has_relax) and frametime < frametime_limition:
-            await _save_suspicion(player, score, SuspicionKind.REPLAY, f"timewarp cheating (frametime: {frametime:.2f}) / {frametime_limition})", detail)
-        
+            await _save_suspicion(
+                player,
+                score,
+                SuspicionKind.REPLAY,
+                f"timewarp cheating (frametime: {frametime:.2f}) / {frametime_limition})",
+                detail,
+            )
+
         if (not has_relax) and ur < vanilla_ur_limition:
-            await _save_suspicion(player, score, SuspicionKind.REPLAY, f"potential relax (ur: {ur:.2f} / {vanilla_ur_limition})", detail)
-        
+            await _save_suspicion(
+                player,
+                score,
+                SuspicionKind.REPLAY,
+                f"potential relax (ur: {ur:.2f} / {vanilla_ur_limition})",
+                detail,
+            )
+
         if len(snaps) > snaps_limition:
-            await _save_suspicion(player, score, SuspicionKind.REPLAY, f"potential assist (snaps: {len(snaps):.2f} / {snaps_limition})", detail)
-    
+            await _save_suspicion(
+                player,
+                score,
+                SuspicionKind.REPLAY,
+                f"potential assist (snaps: {len(snaps):.2f} / {snaps_limition})",
+                detail,
+            )
+
+        assert score.bmap, "AC: This shouldn't happen score.beatmap is None"
+
         # bmap.status in [Ranked, Approved]
         if score.bmap.awards_ranked_pp and score.pp > PPCAP[score.mode]:
-            await _save_suspicion(player, score, SuspicionKind.PPCAP, f"ppcap threshold exceeded (pp: {score.pp:.2f} / {PPCAP[score.mode]})", detail)
+            await _save_suspicion(
+                player,
+                score,
+                SuspicionKind.PPCAP,
+                f"ppcap threshold exceeded (pp: {score.pp:.2f} / {PPCAP[score.mode]})",
+                detail,
+            )
     except:
-        log(f"Failed to check the score ({score.id} by {score.player.name}), skipped.", Ansi.RED)
-    
-    
+        log(
+            f"Failed to check the score ({score.id} by {score.player.name if score.player is not None else 'unknown player'}), skipped.",
+            Ansi.RED,
+        )

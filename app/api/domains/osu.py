@@ -602,18 +602,19 @@ async def osuSubmitModularSelector(
 
     ## perform checksum validation
 
-    asyncio.ensure_future(
+    _task = asyncio.ensure_future(
         anticheat.validate_checksum(
             unique_ids,
             osu_version,
             client_hash_decoded,
-            storyboard_md5,
+            storyboard_md5 or "",
             bmap_md5,
             updated_beatmap_hash,
             player,
             score,
         )
     )
+    asyncio.ensure_future(anticheat.ignore_error(_task))
 
     # we should update their activity no matter
     # what the result of the score submission is.
@@ -793,7 +794,8 @@ async def osuSubmitModularSelector(
                     score.player.logout()
 
         # suspect the score after the replay file written
-        asyncio.ensure_future(anticheat.validate_replay(player, score))
+        _task = asyncio.ensure_future(anticheat.validate_replay(player, score))
+        asyncio.ensure_future(anticheat.ignore_error(_task))
 
     """ Update the user's & beatmap's stats """
 
