@@ -17,6 +17,7 @@ from typing import Literal
 from typing import TypedDict
 from zoneinfo import ZoneInfo
 
+from app.bg_loops import OSU_CLIENT_MIN_PING_INTERVAL
 import bcrypt
 import databases.core
 from fastapi import APIRouter
@@ -76,7 +77,7 @@ OSU_API_V2_CHANGELOG_URL = "https://osu.ppy.sh/api/v2/changelog"
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
 DISK_CHAT_LOG_FILE = ".data/logs/chat.log"
 
-PPYSB_CLIENT_VERSION = "b20210125.1 SB Edition.x01" # (ppysb feature)
+PPYSB_CLIENT_VERSION = "b20210125.1 SB Edition.x01"  # (ppysb feature)
 
 BASE_DOMAIN = app.settings.DOMAIN
 
@@ -123,6 +124,7 @@ async def bancho_http_handler() -> Response:
 async def bancho_view_online_users() -> Response:
     """see who's online"""
     new_line = "\n"
+    current_time = time.time()
 
     players: list[Player] = []
     bots: list[Player] = []
@@ -132,16 +134,38 @@ async def bancho_view_online_users() -> Response:
         else:
             players.append(p)
 
-    id_max_length = len(str(max(p.id for p in app.state.sessions.players)))
-
     return HTMLResponse(
         f"""
 <!DOCTYPE html>
+<head>
+<meta charset="utf-8">
+<style>
+table, th, td {{
+  border: 1px solid black;
+  border-collapse: collapse;
+}}
+</style>
+</head>
 <body style="font-family: monospace;  white-space: pre-wrap;"><a href="/">back</a>
-users:
-{new_line.join([f"({p.id:>{id_max_length}}): {p.safe_name}" for p in players])}
-bots:
-{new_line.join(f"({p.id:>{id_max_length}}): {p.safe_name}" for p in bots)}
+<table>
+  <thead>
+      <tr>
+        <th>id</th>
+        <th>name</th>
+        <th>disconnect timeout</th>
+      </tr>
+  </thead>
+  <tbody>
+  <tr>
+    <th colspan="99">users: {len(players)}</th>
+  </tr>
+  {new_line.join([f'<tr> <td style="text-align: right">{p.id}</td> <td>{p.safe_name}</td> <td style="text-align: right">{round(current_time - p.last_recv_time - OSU_CLIENT_MIN_PING_INTERVAL)}s</td>' for p in players])}
+  <tr>
+    <th colspan="99">bots: {len(bots)}</th>
+  </tr>
+  {new_line.join([f'<tr> <td style="text-align: right">{p.id}</td> <td>{p.safe_name}</td> <td style="text-align: right">-</td>' for p in bots])}
+  </tbody>
+</table>
 </body>
 </html>""",
     )
@@ -657,14 +681,13 @@ async def handle_osu_login_request(
       -8: requires verification
       other: valid id, logged in
     """
-    
 
     # parse login data (ppysb feature)
     login_data = parse_login_data(body)
     bypass = login_data["osu_version"] == PPYSB_CLIENT_VERSION
 
     # perform some validation & further parsing on the data (ppysb feature)
-    
+
     if bypass:
         osu_version = OsuVersion(
             date=date(
