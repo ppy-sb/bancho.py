@@ -79,7 +79,6 @@ databases = { version = "^0.8.0", extras = ["mysql"] }
 python-json-logger = "^2.0.7"
 rosu-pp-py = { git = "https://github.com/ppy-sb/rosu-pp-py" }
 circleguard = "^5.4.1"
-poetry = "1.8.5"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "3.6.1"
@@ -94,5 +93,5 @@ types-pyyaml = "^6.0.12.12"
 sqlalchemy2-stubs = "^0.0.2a38"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["maturin>=0.8.1,<0.9"]
+build-backend = "maturin"
