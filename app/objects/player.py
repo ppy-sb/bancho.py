@@ -391,8 +391,8 @@ class Player:
             host.remove_spectator(self)
 
         # leave channels
-        while self.channels:
-            self.leave_channel(self.channels[0], kick=False)
+        for channel in self.channels:
+            self.leave_channel(channel, kick=False)
 
         # remove from playerlist and
         # enqueue logout to all users.
