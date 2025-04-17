@@ -48,7 +48,6 @@ class DifficultyRating(TypedDict):
     stamina: float | None
     color: float | None
     rhythm: float | None
-    peak: float | None
 
 
 class PerformanceResult(TypedDict):
@@ -97,7 +96,7 @@ def calculate_performances(
                 score.mods |= Mods.DOUBLETIME
 
         # solve for converted maps calculation
-        calc_bmap.convert(get_mode(score.mode))
+        calc_bmap.convert(get_mode(score.mode), score.mods)
 
         score_params = {
             "mods": score.mods or 0,
@@ -145,7 +144,6 @@ def calculate_performances(
                     "stamina": result.difficulty.stamina,
                     "color": result.difficulty.color,
                     "rhythm": result.difficulty.rhythm,
-                    "peak": result.difficulty.peak,
                 },
             },
         )
