@@ -281,9 +281,7 @@ class Player:
         self.pres_filter = PresenceFilter.Nil
 
         # store most recent score for each gamemode.
-        self.recent_scores: dict[GameMode, Score | None] = {
-            mode: None for mode in GameMode
-        }
+        self.recent_scores: dict[GameMode, Score | None] = {mode: None for mode in GameMode}
 
         # store the last beatmap /np'ed by the user.
         self.last_np: LastNp | None = None
@@ -948,6 +946,35 @@ class Player:
             )
 
         return await self.get_global_rank(mode)
+
+    async def recalc_stats_sql(self, mode: GameMode) -> ModeData:
+        """Recalculate `self`'s stats from sql."""
+        await stats_repo.sql_recalculate_mode(
+            player_id=self.id,
+            mode=mode.value,
+        )
+        row = await stats_repo.fetch_one(player_id=self.id, mode=mode.value)
+        md = self.stats[mode]
+        if row is None:
+            return md
+
+        md.tscore = row["tscore"]
+        md.rscore = row["rscore"]
+        md.pp = row["pp"]
+        md.acc = row["acc"]
+        md.plays = row["plays"]
+        md.playtime = row["playtime"]
+        md.max_combo = row["max_combo"]
+        md.total_hits = row["total_hits"]
+        # before.rank = await self.get_global_rank(mode)
+        md.grades = {
+            Grade.XH: row["xh_count"],
+            Grade.X: row["x_count"],
+            Grade.SH: row["sh_count"],
+            Grade.S: row["s_count"],
+            Grade.A: row["a_count"],
+        }
+        return md
 
     async def stats_from_sql_full(self) -> None:
         """Retrieve `self`'s stats (all modes) from sql."""
