@@ -248,7 +248,8 @@ async def validate_replay(player: Player, score: Score) -> None:
             )
 
         # bmap.status in [Ranked, Approved]
-        if beatmap.awards_ranked_pp and score.pp > PPCAP[score.mode]:
+        assert score.bmap is not None
+        if score.bmap.awards_ranked_pp and score.pp > PPCAP[score.mode]:
             await _save_suspicion(
                 player,
                 score,
