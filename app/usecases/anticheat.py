@@ -1,13 +1,10 @@
-from datetime import datetime
 import hashlib
 import struct
-from typing import Optional, Union
-from circleguard import Circleguard, ReplayString
-from slider import Beatmap
-
-from app import settings
+import slider
 from pathlib import Path
-import app
+from circleguard import Circleguard, ReplayString
+
+from app import packets, settings, state
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
 from app.constants.privileges import Privileges
@@ -41,14 +38,8 @@ vanilla_ur_limition = 60
 snaps_limition = 20
 
 
-def _parse_score(score: Score) -> tuple[ReplayString, Optional[Beatmap]] | None:
-    if score.bmap is None:
-        log(f"score without beatmap ({score.id}), skipped.", Ansi.RED)
-        return None
-
-    if score.player is None:
-        log(f"score without player ({score.id}), skipped.", Ansi.RED)
-        return None
+def _parse_score(score: Score) -> tuple[ReplayString, slider.Beatmap]:
+    assert score.bmap and score.player, f"Invalid score ({score.id})."
 
     replay_file = REPLAYS_PATH / f"{score.id}.osr"
     beatmap_file = BEATMAPS_PATH / f"{score.bmap.id}.osu"
@@ -78,9 +69,9 @@ def _parse_score(score: Score) -> tuple[ReplayString, Optional[Beatmap]] | None:
         GameMode(score.mode).as_vanilla,
         20200207,
     )  # TODO: osuver
-    replay_data += app.packets.write_string(score.bmap.md5)
-    replay_data += app.packets.write_string(score.player.name)
-    replay_data += app.packets.write_string(replay_md5)
+    replay_data += packets.write_string(score.bmap.md5)
+    replay_data += packets.write_string(score.player.name)
+    replay_data += packets.write_string(replay_md5)
     replay_data += struct.pack(
         "<hhhhhhihBi",
         score.n300,
@@ -102,18 +93,14 @@ def _parse_score(score: Score) -> tuple[ReplayString, Optional[Beatmap]] | None:
     replay_data += raw_replay_data
     # pack additional info buffer.
     replay_data += struct.pack("<q", score.id)
-    try:
-        cg_beatmap = Beatmap.from_path(beatmap_file)
-        return circleguard.ReplayString(replay_data), cg_beatmap
-    except ValueError:
-        log(f"Failed to load beatmap ({beatmap_file}), skipped.", Ansi.RED)
-        return None
+    cg_beatmap = slider.Beatmap.from_path(beatmap_file)
+    return circleguard.ReplayString(replay_data), cg_beatmap
 
 
 async def _save_suspicion(player: Player, score: Score, kind: SuspicionKind, reason: str, detail: dict) -> None:
     # PP threshold exceeded but player is not whitelisted.
     if kind == SuspicionKind.PPCAP and not player.priv & Privileges.WHITELISTED:
-        await player.restrict(app.state.sessions.bot, "suspicion detected, temporally restrict the player.")
+        await player.restrict(state.sessions.bot, "suspicion detected, temporally restrict the player.")
     if score.id is None:
         log(
             f"suspicious score with no id: ({player.name}), kind: {kind}, reason: {reason}, detail: {detail}",
@@ -194,30 +181,15 @@ async def validate_checksum(
 
 async def validate_replay(player: Player, score: Score) -> None:
     try:
+        assert score.bmap is not None, f"Score without beatmap ({score.id}), skipped."
+        assert score.player is not None, f"Score without player ({score.id}), skipped."
+        
         has_relax = score.mods & Mods.RELAX or score.mods & Mods.AUTOPILOT
-        r = _parse_score(score)
-
-        if r is None:
-            log(
-                f"Failed to parse score ({score.id} by {player.name}), skipped.",
-                Ansi.RED,
-            )
-            return
-
-        replay, _beatmap = r
-
-        beatmap = _beatmap or score.bmap
-
-        if beatmap is None:
-            log(
-                f"Failed to load beatmap of score ({score.id}), skipped.",
-                Ansi.RED,
-            )
-            return
+        replay, slider_beatmap = _parse_score(score)
 
         frametime = circleguard.frametime(replay)
-        ur = circleguard.ur(replay, beatmap=beatmap) if not has_relax else 0
-        snaps = circleguard.snaps(replay, beatmap=beatmap)
+        ur = circleguard.ur(replay, beatmap=slider_beatmap) if not has_relax else 0
+        snaps = circleguard.snaps(replay, beatmap=slider_beatmap)
         snaps_size = len(list(snaps))
         detail = {"frametime": frametime, "ur": ur, "snaps": snaps_size}
         if (not has_relax) and frametime < frametime_limition:
@@ -248,7 +220,6 @@ async def validate_replay(player: Player, score: Score) -> None:
             )
 
         # bmap.status in [Ranked, Approved]
-        assert score.bmap is not None
         if score.bmap.awards_ranked_pp and score.pp > PPCAP[score.mode]:
             await _save_suspicion(
                 player,
@@ -257,8 +228,8 @@ async def validate_replay(player: Player, score: Score) -> None:
                 f"ppcap threshold exceeded (pp: {score.pp:.2f} / {PPCAP[score.mode]})",
                 detail,
             )
-    except:
+    except Exception as error:
         log(
-            f"Failed to check the score ({score.id} by {score.player.name if score.player is not None else 'unknown'}), skipped.",
+            f"Failed to check the score ({score.id} by {score.player.name if score.player is not None else 'unknown'}): {repr(error)}.",
             Ansi.RED,
         )
