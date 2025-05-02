@@ -291,7 +291,7 @@ async def sql_recalculate_mode(player_id: int, mode: int) -> None:
             SUM(s2.score) AS total_score,
             SUM(IF(s2.status IN (2, 3), s2.score, 0)) AS ranked_score,
             SUM(s2.n300 + s2.n100 + s2.n50 + (IF(s2.mode IN (1, 3, 5), s2.ngeki + s2.nkatu, 0))) AS total_hits,
-            SUM(s2.time_elapsed) AS play_time,
+            SUM(s2.time_elapsed) / 1000 AS play_time,
             SUM(s2.grade = "XH") AS xh_count,
             MAX(s2.max_combo) AS max_combo,  
             SUM(s2.grade = "X") AS x_count,
