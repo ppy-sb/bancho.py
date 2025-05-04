@@ -1023,11 +1023,6 @@ async def api_get_pool(
         if pool_creator.clan_id is not None
         else None
     )
-    pool_creator_clan_members: list[users_repo.User] = []
-    if pool_creator_clan is not None:
-        pool_creator_clan_members = await users_repo.fetch_many(
-            clan_id=pool_creator.clan_id,
-        )
 
     return ORJSONResponse(
         {
@@ -1043,7 +1038,9 @@ async def api_get_pool(
                         "id": pool_creator_clan["id"],
                         "name": pool_creator_clan["name"],
                         "tag": pool_creator_clan["tag"],
-                        "members": len(pool_creator_clan_members),
+                        "members": await users_repo.fetch_count(
+                            clan_id=pool_creator.clan_id,
+                        ),
                     }
                     if pool_creator_clan is not None
                     else None
