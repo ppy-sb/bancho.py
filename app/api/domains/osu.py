@@ -5,6 +5,7 @@ import asyncio
 
 import copy
 import hashlib
+import json
 import random
 import secrets
 from collections import defaultdict
@@ -536,7 +537,7 @@ async def osuSubmitModularSelector(
     token: str | None = Header(None),  # ppysb feature: none when using ppysb client
     # TODO: do ft & st contain pauses?
     exited_out: bool = Form(..., alias="x"),
-    sb_pause: list[tuple[int, int]] | None = Form(..., alias="sbPause"),
+    sb_pause: str | None = Form(..., alias="sbPause"),
     fail_time: int = Form(..., alias="ft"),
     visual_settings_b64: bytes = Form(..., alias="fs"),
     updated_beatmap_hash: str = Form(..., alias="bmk"),
@@ -792,9 +793,11 @@ async def osuSubmitModularSelector(
 
         # ppy.sb feature
 
+        _sb_pause: list[tuple[int, int]] | None = json.loads(sb_pause) if sb_pause else None
+
         # save extra metadata
         db_meta = (
-            SbPatcherScoreMeta(raw=SbPatcherScoreMetaRawV1(pauses=sb_pause))
+            SbPatcherScoreMeta(raw=SbPatcherScoreMetaRawV1(pauses=_sb_pause))
             .collect_score(score)
             .collect_score_id(score.id)
             .collect_beatmap_meta(score.bmap)
