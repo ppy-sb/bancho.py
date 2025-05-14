@@ -2,6 +2,7 @@ from __future__ import annotations
 
 
 from datetime import datetime
+import json
 from typing import Any
 from typing import cast
 
@@ -76,7 +77,7 @@ async def insert_returning_id(
         id=id,
         no_pause=no_pause,
         strict_no_pause=strict_no_pause,
-        raw=raw,
+        raw=json.dumps(raw.__dict__),
     )
     return await app.state.services.database.execute(insert_stmt)
 

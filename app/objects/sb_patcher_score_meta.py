@@ -11,6 +11,7 @@ duration = int
 
 @dataclass
 class SbPatcherScoreMetaRawV1:
+    _v = 1
     pauses: list[tuple[start, duration]] | None  # start, duration (in ms)
 
     def any_data(self) -> bool:
@@ -42,7 +43,7 @@ class _SbPatcherScoreMeta:
     score: Optional[Score] = None
     beatmap_meta: Optional[Beatmap] = None
 
-    _should_save = False
+    _should_save = True
 
     def __init__(
         self,
@@ -73,6 +74,7 @@ class _SbPatcherScoreMeta:
                 await job()
             else:
                 job()
+
             if not self._should_save:
                 break
 
@@ -82,7 +84,7 @@ class _SbPatcherScoreMeta:
             map_duration_ms=self.beatmap_meta.total_length * 1000 if self.beatmap_meta else None,
         )
 
-        if not intersected:
+        if intersected is None:
             self._should_save = False
             return
 
@@ -127,7 +129,7 @@ class SbPatcherScoreMeta(_SbPatcherScoreMeta):
 
     @staticmethod
     def all_set(input: "SbPatcherScoreMeta") -> "TypeGuard[SealedSbPatcherScoreMeta]":
-        return input._should_save is True and input.no_pause is not None and input.strict_no_pause is not None
+        return input._should_save is True
 
     async def seal(self) -> "SealedSbPatcherScoreMeta | None":
         await self.run_jobs()
