@@ -59,6 +59,8 @@ from app.objects.beatmap import ensure_osu_file_is_available
 from app.objects.player import OsuStream
 from app.objects.player import Player
 from app.objects.player import Privileges
+from app.objects.sb_patcher_score_meta import SbPatcherScoreMeta
+from app.objects.sb_patcher_score_meta import SbPatcherScoreMetaRawV1
 from app.objects.score import Grade
 from app.objects.score import Score
 from app.objects.score import SubmissionStatus
@@ -68,6 +70,7 @@ from app.repositories import favourites as favourites_repo
 from app.repositories import mail as mail_repo
 from app.repositories import maps as maps_repo
 from app.repositories import ratings as ratings_repo
+from app.repositories import sb_patcher_scores_meta as patcher_scores_repo
 from app.repositories import scores as scores_repo
 from app.repositories import stats as stats_repo
 from app.repositories import users as users_repo
@@ -540,6 +543,7 @@ async def osuSubmitModularSelector(
     token: str | None = Header(None),  # ppysb feature: none when using ppysb client
     # TODO: do ft & st contain pauses?
     exited_out: bool = Form(..., alias="x"),
+    sb_pause: list[tuple[int, int]] | None = Form(..., alias="sbPause"),
     fail_time: int = Form(..., alias="ft"),
     visual_settings_b64: bytes = Form(..., alias="fs"),
     updated_beatmap_hash: str = Form(..., alias="bmk"),
@@ -795,8 +799,29 @@ async def osuSubmitModularSelector(
                 if score.player.is_online:
                     score.player.logout()
 
+        # ppy.sb feature
+
+        # save extra metadata
+        db_meta = (
+            SbPatcherScoreMeta(raw=SbPatcherScoreMetaRawV1(pauses=sb_pause))
+            .collect_score(score)
+            .collect_score_id(score.id)
+            .collect_beatmap_meta(score.bmap)
+        )
+
+        sealed = await db_meta.seal()
+        if sealed is not None:
+            await patcher_scores_repo.insert_returning_id(
+                id=sealed.id,
+                no_pause=sealed.no_pause,
+                strict_no_pause=sealed.strict_no_pause,
+                raw=sealed.raw,
+            )
+
         # suspect the score after the replay file written
         asyncio.ensure_future(anticheat.validate_replay(player, score))
+
+        # end ppy.sb feature
 
     """ Update the user's & beatmap's stats """
 
@@ -846,7 +871,9 @@ async def osuSubmitModularSelector(
         if score.bmap.awards_ranked_pp and not score.player.restricted:
             unlocked_achievements: list[Achievement] = []
 
-            locked_achievements = await achievements_usecases.fetch_user_locked(user_id=score.player.id)
+            locked_achievements = await achievements_usecases.fetch_user_locked(
+                user_id=score.player.id
+            )
 
             for server_achievement in locked_achievements:
                 achievement_condition = server_achievement["cond"]
@@ -1083,8 +1110,8 @@ async def get_leaderboard_scores(
     if is_streaming:
         for score in score_rows:
             # we replaced the username with that user's userid, also, return a fake userid to hide avatar.
-            score['name'] = f"Player{str(score['userid'])}"
-            score['userid'] = -1     
+            score["name"] = f"Player{str(score['userid'])}"
+            score["userid"] = -1
 
     return score_rows, personal_best_score_row
 
