@@ -537,7 +537,7 @@ async def osuSubmitModularSelector(
     token: str | None = Header(None),  # ppysb feature: none when using ppysb client
     # TODO: do ft & st contain pauses?
     exited_out: bool = Form(..., alias="x"),
-    sb_pause: str | None = Form(..., alias="sbPause"),
+    sb_pause: str | None = Form(None, alias="sbPause"),
     fail_time: int = Form(..., alias="ft"),
     visual_settings_b64: bytes = Form(..., alias="fs"),
     updated_beatmap_hash: str = Form(..., alias="bmk"),
