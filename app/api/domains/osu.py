@@ -61,7 +61,9 @@ from app.objects.player import OsuStream
 from app.objects.player import Player
 from app.objects.player import Privileges
 from app.objects.sb_patcher_score_meta import SbPatcherScoreMeta
+from app.objects.sb_patcher_score_meta import SbPatcherScoreMetaRawTest
 from app.objects.sb_patcher_score_meta import SbPatcherScoreMetaRawV1
+from app.objects.sb_patcher_score_meta import SbPatcherScoreMetaRawV2
 from app.objects.score import Grade
 from app.objects.score import Score
 from app.objects.score import SubmissionStatus
@@ -545,6 +547,7 @@ async def osuSubmitModularSelector(
     # TODO: do ft & st contain pauses?
     exited_out: bool = Form(..., alias="x"),
     sb_pause: str | None = Form(None, alias="sbPause"),
+    sb_patcher_meta: str | None = Form(None, alias="sbp"),
     fail_time: int = Form(..., alias="ft"),
     visual_settings_b64: bytes = Form(..., alias="fs"),
     updated_beatmap_hash: str = Form(..., alias="bmk"),
@@ -783,25 +786,69 @@ async def osuSubmitModularSelector(
 
     if score.passed:
         # ppy.sb feature
-        _sb_pause: list[tuple[int, int]] | None = json.loads(sb_pause) if sb_pause else None
+        try:
+            db_meta = None
+            if sb_patcher_meta:
+                patcher_meta: dict[str, Any] = json.loads(sb_patcher_meta)
+                raw = SbPatcherScoreMetaRawV2(
+                    p=patcher_meta["p"], h=patcher_meta["h"], v=patcher_meta["v"]
+                )
 
-        # save extra metadata
-        db_meta = (
-            SbPatcherScoreMeta(raw=SbPatcherScoreMetaRawV1(pauses=_sb_pause))
-            .collect_score(score)
-            .collect_score_id(score.id)
-            .collect_beatmap_meta(score.bmap)
-        )
+                # save extra metadata
+                db_meta = SbPatcherScoreMeta(raw=raw)
 
-        sealed = await db_meta.seal()
-        if sealed is not None:
-            await patcher_scores_repo.insert_returning_id(
-                id=sealed.id,
-                no_pause=sealed.no_pause,
-                strict_no_pause=sealed.strict_no_pause,
-                raw=sealed.raw,
-            )
+            elif sb_pause:
+                _sb_pause: list[tuple[int, int]] = json.loads(sb_pause)
+
+                # save extra metadata
+                db_meta = SbPatcherScoreMeta(
+                    raw=SbPatcherScoreMetaRawTest(pauses=_sb_pause)
+                )
+                # notify player deprecation
+                player.enqueue(
+                    app.packets.notification(
+                        "your version of sb patcher is deprecated, please update to the latest version.",
+                    ),
+                )
+
+            if db_meta:
+                sealed = await (
+                    db_meta.infer_raw_data()
+                    .collect_score(score)
+                    .collect_score_id(score.id)
+                    .collect_beatmap_meta(score.bmap)
+                    .seal()
+                )
+                if sealed is not None:
+                    await patcher_scores_repo.insert_returning_id(
+                        id=sealed.id,
+                        no_pause=sealed.no_pause,
+                        strict_no_pause=sealed.strict_no_pause,
+                        hash=sealed.hash,
+                        v=sealed.v,
+                        raw=sealed.raw,
+                    )
+
+        except (
+            json.JSONDecodeError,
+            KeyError,
+            ValueError,
+            TypeError,
+            BaseException,
+        ) as exc:
+            match exc:
+                case json.JSONDecodeError:
+                    log(f"Failed to parse sb_patcher_meta JSON: {exc}", Ansi.LRED)
+                case KeyError():
+                    log(f"sb_patcher_meta KeyError: {exc}", Ansi.LRED)
+                case ValueError():
+                    log(f"sb_patcher_meta ValueError: {exc}", Ansi.LRED)
+                case TypeError():
+                    log(f"sb_patcher_meta TypeError: {exc}", Ansi.LRED)
+                case _:
+                    log(f"unknown exception during sb_patcher_meta: {exc}", Ansi.LRED)
         # end ppy.sb feature
+
         replay_data = await replay_file.read()
 
         MIN_REPLAY_SIZE = 24
