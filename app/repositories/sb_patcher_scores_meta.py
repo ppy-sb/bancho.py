@@ -8,6 +8,7 @@ from typing import cast
 
 from sqlalchemy import Column
 from sqlalchemy import Boolean
+from sqlalchemy import VARCHAR
 from sqlalchemy import Index
 from sqlalchemy import ForeignKey
 from sqlalchemy import JSON
@@ -38,6 +39,8 @@ class SbPatcherScoreMetaTable(Base):
     )
     no_pause = Column("no_pause", Boolean, nullable=False)
     strict_no_pause = Column("strict_no_pause", Boolean, nullable=False)
+    hash = Column("hash", VARCHAR(64))
+    v = Column("v", VARCHAR(16))
     raw = Column("raw", JSON, nullable=False, default={})
 
 
@@ -45,6 +48,8 @@ READ_PARAMS = (
     SbPatcherScoreMetaTable.id,
     SbPatcherScoreMetaTable.no_pause,
     SbPatcherScoreMetaTable.strict_no_pause,
+    SbPatcherScoreMetaTable.hash,
+    SbPatcherScoreMetaTable.v,
     # ScoresTable.raw,
 )
 
@@ -53,31 +58,42 @@ async def create(
     id: int,
     no_pause: bool,
     strict_no_pause: bool,
+    hash: str,
+    v: str,
     raw: SbPatcherScoreMetaRaw,
 ) -> SealedSbPatcherScoreMeta:
-    rec_id = await insert_returning_id(id, no_pause, strict_no_pause, raw)
+    rec_id = await insert_returning_id(
+        id=id, no_pause=no_pause, strict_no_pause=strict_no_pause, hash=hash, v=v, raw=raw
+    )
     select_stmt = select(*READ_PARAMS).where(SbPatcherScoreMetaTable.id == rec_id)
     _meta = await app.state.services.database.fetch_one(select_stmt)
     assert _meta is not None
     return SealedSbPatcherScoreMeta(
         id=_meta["id"],
         no_pause=_meta["no_pause"],
+        hash=_meta["hash"],
+        v=_meta["v"],
         strict_no_pause=_meta["strict_no_pause"],
         raw=_meta["raw"],
     )
 
 
 async def insert_returning_id(
+    *,
     id: int,
     no_pause: bool,
     strict_no_pause: bool,
+    hash: str,
+    v: str,
     raw: SbPatcherScoreMetaRaw,
 ) -> int:
     insert_stmt = insert(SbPatcherScoreMetaTable).values(
         id=id,
         no_pause=no_pause,
         strict_no_pause=strict_no_pause,
-        raw=json.dumps(raw.__dict__),
+        hash=hash,
+        v=v,
+        raw=json.dumps(raw.db_serialize()),
     )
     return await app.state.services.database.execute(insert_stmt)
 

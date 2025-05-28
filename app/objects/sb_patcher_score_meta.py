@@ -10,12 +10,39 @@ duration = int
 
 
 @dataclass
-class SbPatcherScoreMetaRawV1:
-    _v = 1
-    pauses: list[tuple[start, duration]] | None  # start, duration (in ms)
+class SbPatcherScoreMetaRawV2:
+    p: list[tuple[start, duration]] | None  # start, duration (in ms)
+    h: str
+    v: str
 
     def any_data(self) -> bool:
-        return self.pauses is not None
+        return self.p is not None
+
+    def trim_pauses(
+        self, map_duration_ms: int | None, trim_start_ms: int = 0
+    ) -> list[tuple[start, duration]] | None:
+        if self.p is None:
+            return None
+
+        return [
+            pause
+            for pause in self.p
+            if pause[0] > trim_start_ms
+            and (pause[0] < map_duration_ms if map_duration_ms is not None else True)
+        ]
+
+    def db_serialize(self) -> dict[str, Any]:
+        return {
+            "p": self.p,
+        }
+
+
+@dataclass
+class SbPatcherScoreMetaRawTest:
+    pauses: list[tuple[start, duration]]
+
+    def any_data(self) -> bool:
+        return True
 
     def trim_pauses(
         self, map_duration_ms: int | None, trim_start_ms: int = 0
@@ -30,8 +57,13 @@ class SbPatcherScoreMetaRawV1:
             and (pause[0] < map_duration_ms if map_duration_ms is not None else True)
         ]
 
+    def db_serialize(self) -> dict[str, Any]:
+        return {
+            "pauses": self.pauses,
+        }
 
-SbPatcherScoreMetaRaw = Union[SbPatcherScoreMetaRawV1]
+
+SbPatcherScoreMetaRaw = Union[SbPatcherScoreMetaRawTest | SbPatcherScoreMetaRawV2]
 Job = Callable[[], Coroutine[Any, Any, None] | None]
 
 
@@ -39,6 +71,8 @@ class _SbPatcherScoreMeta:
     raw: SbPatcherScoreMetaRaw
     no_pause: bool | None
     strict_no_pause: bool | None
+    hash: str
+    v: str
 
     score: Optional[Score] = None
     beatmap_meta: Optional[Beatmap] = None
@@ -51,6 +85,24 @@ class _SbPatcherScoreMeta:
         raw: SbPatcherScoreMetaRaw,
     ):
         self.raw = raw
+
+    def infer_raw_data(self) -> Self:
+        if isinstance(self.raw, SbPatcherScoreMetaRawV2):
+            self.collect_hash(self.raw.h)
+            self.collect_version(self.raw.v)
+        elif isinstance(self.raw, SbPatcherScoreMetaRawTest):
+            self.collect_hash("test")
+            self.collect_version("test")
+
+        return self
+
+    def collect_hash(self, hash: str) -> Self:
+        self.hash = hash
+        return self
+
+    def collect_version(self, v: str) -> Self:
+        self.v = v
+        return self
 
     def collect_score(self, score: Score) -> Self:
         self.score = score
@@ -139,6 +191,8 @@ class SbPatcherScoreMeta(_SbPatcherScoreMeta):
 
         return SealedSbPatcherScoreMeta(
             id=self.id,
+            hash=self.hash,
+            v=self.v,
             no_pause=self.no_pause,
             strict_no_pause=self.strict_no_pause,
             raw=self.raw,
@@ -148,6 +202,8 @@ class SbPatcherScoreMeta(_SbPatcherScoreMeta):
 @dataclass
 class SealedSbPatcherScoreMeta:
     id: int
+    hash: str
+    v: str
     no_pause: bool
     strict_no_pause: bool
     raw: SbPatcherScoreMetaRaw
