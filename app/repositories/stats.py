@@ -128,11 +128,7 @@ async def create_all_modes(player_id: int) -> list[Stat]:
 
 async def fetch_one(player_id: int, mode: int) -> Stat | None:
     """Fetch a player stats entry from the database."""
-    select_stmt = (
-        select(*READ_PARAMS)
-        .where(StatsTable.id == player_id)
-        .where(StatsTable.mode == mode)
-    )
+    select_stmt = select(*READ_PARAMS).where(StatsTable.id == player_id).where(StatsTable.mode == mode)
     stat = await app.state.services.database.fetch_one(select_stmt)
     return cast(Stat | None, stat)
 
@@ -189,11 +185,7 @@ async def partial_update(
     a_count: int | _UnsetSentinel = UNSET,
 ) -> Stat | None:
     """Update a player stats entry in the database."""
-    update_stmt = (
-        update(StatsTable)
-        .where(StatsTable.id == player_id)
-        .where(StatsTable.mode == mode)
-    )
+    update_stmt = update(StatsTable).where(StatsTable.id == player_id).where(StatsTable.mode == mode)
     if not isinstance(tscore, _UnsetSentinel):
         update_stmt = update_stmt.values(tscore=tscore)
     if not isinstance(rscore, _UnsetSentinel):
@@ -225,11 +217,7 @@ async def partial_update(
 
     await app.state.services.database.execute(update_stmt)
 
-    select_stmt = (
-        select(*READ_PARAMS)
-        .where(StatsTable.id == player_id)
-        .where(StatsTable.mode == mode)
-    )
+    select_stmt = select(*READ_PARAMS).where(StatsTable.id == player_id).where(StatsTable.mode == mode)
     stat = await app.state.services.database.fetch_one(select_stmt)
     return cast(Stat | None, stat)
 
@@ -302,7 +290,7 @@ async def sql_recalculate_mode(player_id: int, mode: int) -> None:
             SUM(s2.grade = "A") AS a_count
         FROM
             scores s2
-        INNER JOIN maps m2 ON s2.map_md5 = m2.md5
+        LEFT JOIN maps m2 ON s2.map_md5 = m2.md5
         WHERE s2.mode = :mode
         AND s2.userid = :user_id
     )
@@ -326,9 +314,7 @@ SET
 WHERE s.id = :user_id AND s.mode = :mode
     """
 
-    _ = await app.state.services.database.execute(
-        sql, {"user_id": player_id, "mode": mode}
-    )
+    _ = await app.state.services.database.execute(sql, {"user_id": player_id, "mode": mode})
 
 
 # TODO: delete?
