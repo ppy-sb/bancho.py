@@ -11,8 +11,13 @@ duration = int
 
 @dataclass
 class SbPatcherScoreMetaRawV2:
+    """patcher score meta raw v2 data"""
+
+    """pause data"""
     p: list[tuple[start, duration]] | None  # start, duration (in ms)
+    """patcher client hash"""
     h: str
+    """patcher client version"""
     v: str
 
     def any_data(self) -> bool:

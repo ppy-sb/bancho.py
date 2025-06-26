@@ -5,7 +5,6 @@ import asyncio
 
 import copy
 import hashlib
-import json
 import random
 import secrets
 from collections import defaultdict
@@ -43,6 +42,7 @@ from starlette.datastructures import UploadFile as StarletteUploadFile
 import app.packets
 import app.settings
 import app.state
+from app.usecases.sb.osu_submit_modular_context import OsuSubmitModularContext, OsuSubmitModularRaw
 import app.utils
 from app import encryption
 from app._typing import UNSET
@@ -62,11 +62,6 @@ from app.objects.player import Privileges
 from app.objects.score import Grade
 from app.objects.score import Score
 from app.objects.score import SubmissionStatus
-from app.objects.sb_patcher_score_meta import (
-    SbPatcherScoreMeta,
-    SbPatcherScoreMetaRawTest,
-    SbPatcherScoreMetaRawV2,
-)
 from app.repositories import clans as clans_repo
 from app.repositories import comments as comments_repo
 from app.repositories import favourites as favourites_repo
@@ -76,10 +71,10 @@ from app.repositories import ratings as ratings_repo
 from app.repositories import scores as scores_repo
 from app.repositories import stats as stats_repo
 from app.repositories import users as users_repo
-from app.repositories import sb_patcher_scores_meta as patcher_scores_repo
 from app.repositories.achievements import Achievement
 from app.usecases import achievements as achievements_usecases, anticheat
 from app.usecases import user_achievements as user_achievements_usecases
+from app.usecases.sb import sb_patcher as sb_patcher_usecases
 from app.utils import escape_enum
 from app.utils import pymysql_encode
 
@@ -541,8 +536,6 @@ async def osuSubmitModularSelector(
     token: str | None = Header(None),  # ppysb feature: none when using ppysb client
     # TODO: do ft & st contain pauses?
     exited_out: bool = Form(..., alias="x"),
-    sb_pause: str | None = Form(None, alias="sbPause"),
-    sb_patcher_meta: str | None = Form(None, alias="sbp"),
     fail_time: int = Form(..., alias="ft"),
     visual_settings_b64: bytes = Form(..., alias="fs"),
     updated_beatmap_hash: str = Form(..., alias="bmk"),
@@ -579,6 +572,25 @@ async def osuSubmitModularSelector(
         osu_version,
     )
 
+    # ppy.sb feature
+    context = OsuSubmitModularContext(
+        request=request,
+        raw=OsuSubmitModularRaw(
+            client_hash=client_hash_decoded,
+            osu_version=osu_version,
+            exited_out=exited_out,
+            fail_time=fail_time,
+            visual_settings_b64=visual_settings_b64,
+            updated_beatmap_hash=updated_beatmap_hash,
+            storyboard_md5=storyboard_md5,
+            iv_b64=iv_b64,
+            unique_ids=unique_ids,
+            score_time=score_time,
+            pw_md5=pw_md5,
+        ),
+    )
+    # end ppy.sb feature
+
     # fetch map & player
 
     bmap_md5 = score_data[0]
@@ -605,6 +617,12 @@ async def osuSubmitModularSelector(
     # attach bmap & player
     score.bmap = bmap
     score.player = player
+
+    # ppy.sb feature
+    context.map = bmap
+    context.player = player
+    context.score = score
+    # end ppy.sb feature
 
     ## perform checksum validation
 
@@ -777,61 +795,14 @@ async def osuSubmitModularSelector(
             },
         )
 
+    # ppy.sb feature
+    if not (context.is_post_submit(context)):  # this will always be true we set all data before
+        return Response(b"")
+
+    asyncio.ensure_future(sb_patcher_usecases.osu_submit_modular_handler(context))
+    # end ppy.sb feature
+
     if score.passed:
-        # ppy.sb feature
-        try:
-            db_meta = None
-            if sb_patcher_meta:
-                patcher_meta: dict[str, Any] = json.loads(sb_patcher_meta)
-                raw = SbPatcherScoreMetaRawV2(p=patcher_meta["p"], h=patcher_meta["h"], v=patcher_meta["v"])
-
-                # save extra metadata
-                db_meta = SbPatcherScoreMeta(raw=raw)
-
-            elif sb_pause:
-                _sb_pause: list[tuple[int, int]] = json.loads(sb_pause)
-
-                # save extra metadata
-                db_meta = SbPatcherScoreMeta(raw=SbPatcherScoreMetaRawTest(pauses=_sb_pause))
-                # notify player deprecation
-                player.enqueue(
-                    app.packets.notification(
-                        "your version of sb patcher is deprecated, please update to the latest version.",
-                    ),
-                )
-
-            if db_meta:
-                sealed = await (
-                    db_meta.infer_raw_data()
-                    .collect_score(score)
-                    .collect_score_id(score.id)
-                    .collect_beatmap_meta(score.bmap)
-                    .seal()
-                )
-                if sealed is not None:
-                    await patcher_scores_repo.insert_returning_id(
-                        id=sealed.id,
-                        no_pause=sealed.no_pause,
-                        strict_no_pause=sealed.strict_no_pause,
-                        hash=sealed.hash,
-                        v=sealed.v,
-                        raw=sealed.raw,
-                    )
-
-        except (json.JSONDecodeError, KeyError, ValueError, TypeError, BaseException) as exc:
-            match exc:
-                case json.JSONDecodeError:
-                    log(f"Failed to parse sb_patcher_meta JSON: {exc}", Ansi.LRED)
-                case KeyError():
-                    log(f"sb_patcher_meta KeyError: {exc}", Ansi.LRED)
-                case ValueError():
-                    log(f"sb_patcher_meta ValueError: {exc}", Ansi.LRED)
-                case TypeError():
-                    log(f"sb_patcher_meta TypeError: {exc}", Ansi.LRED)
-                case _:
-                    log(f"unknown exception during sb_patcher_meta: {exc}", Ansi.LRED)
-        # end ppy.sb feature
-
         replay_data = await replay_file.read()
 
         MIN_REPLAY_SIZE = 24
