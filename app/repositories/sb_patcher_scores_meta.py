@@ -19,7 +19,7 @@ from sqlalchemy import update
 from sqlalchemy.dialects.mysql import BIGINT
 
 from app.objects.beatmap import Beatmap
-from app.objects.sb_patcher_score_meta import SealedSbPatcherScoreMeta, SbPatcherScoreMetaRaw
+from app.objects.sb.patcher_score_meta import SealedSbPatcherScoreMeta, SbPatcherScoreMetaRaw
 from app.objects.score import Score
 import app.state.services
 from app._typing import UNSET

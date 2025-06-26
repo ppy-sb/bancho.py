@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import copy
 import hashlib
-import json
 import random
 import secrets
 from collections import defaultdict
@@ -81,6 +80,9 @@ from app.repositories.achievements import Achievement
 from app.usecases import achievements as achievements_usecases
 from app.usecases import anticheat
 from app.usecases import user_achievements as user_achievements_usecases
+from app.usecases.sb import sb_patcher as sb_patcher_usecases
+from app.usecases.sb.osu_submit_modular_context import OsuSubmitModularContext
+from app.usecases.sb.osu_submit_modular_context import OsuSubmitModularRaw
 from app.utils import escape_enum
 from app.utils import pymysql_encode
 
@@ -546,8 +548,6 @@ async def osuSubmitModularSelector(
     token: str | None = Header(None),  # ppysb feature: none when using ppysb client
     # TODO: do ft & st contain pauses?
     exited_out: bool = Form(..., alias="x"),
-    sb_pause: str | None = Form(None, alias="sbPause"),
-    sb_patcher_meta: str | None = Form(None, alias="sbp"),
     fail_time: int = Form(..., alias="ft"),
     visual_settings_b64: bytes = Form(..., alias="fs"),
     updated_beatmap_hash: str = Form(..., alias="bmk"),
@@ -584,6 +584,25 @@ async def osuSubmitModularSelector(
         osu_version,
     )
 
+    # ppy.sb feature
+    context = OsuSubmitModularContext(
+        request=request,
+        raw=OsuSubmitModularRaw(
+            client_hash=client_hash_decoded,
+            osu_version=osu_version,
+            exited_out=exited_out,
+            fail_time=fail_time,
+            visual_settings_b64=visual_settings_b64,
+            updated_beatmap_hash=updated_beatmap_hash,
+            storyboard_md5=storyboard_md5,
+            iv_b64=iv_b64,
+            unique_ids=unique_ids,
+            score_time=score_time,
+            pw_md5=pw_md5,
+        ),
+    )
+    # end ppy.sb feature
+
     # fetch map & player
 
     bmap_md5 = score_data[0]
@@ -610,6 +629,12 @@ async def osuSubmitModularSelector(
     # attach bmap & player
     score.bmap = bmap
     score.player = player
+
+    # ppy.sb feature
+    context.map = bmap
+    context.player = player
+    context.score = score
+    # end ppy.sb feature
 
     ## perform checksum validation
 
@@ -783,6 +808,15 @@ async def osuSubmitModularSelector(
                 "checksum": score.client_checksum,
             },
         )
+
+    # ppy.sb feature
+    if not (
+        context.is_post_submit(context)
+    ):  # this will always be true we set all data before
+        return Response(b"")
+
+    asyncio.ensure_future(sb_patcher_usecases.osu_submit_modular_handler(context))
+    # end ppy.sb feature
 
     if score.passed:
         # ppy.sb feature
