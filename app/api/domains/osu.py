@@ -1,4 +1,4 @@
-""" osu: handle connections from web, api, and beyond? """
+"""osu: handle connections from web, api, and beyond?"""
 
 from __future__ import annotations
 import asyncio
@@ -42,6 +42,7 @@ from starlette.datastructures import UploadFile as StarletteUploadFile
 import app.packets
 import app.settings
 import app.state
+from app.usecases.sb.osu_submit_modular_context import OsuSubmitModularContext, OsuSubmitModularRaw
 import app.utils
 from app import encryption
 from app._typing import UNSET
@@ -73,6 +74,7 @@ from app.repositories import users as users_repo
 from app.repositories.achievements import Achievement
 from app.usecases import achievements as achievements_usecases, anticheat
 from app.usecases import user_achievements as user_achievements_usecases
+from app.usecases.sb import sb_patcher as sb_patcher_usecases
 from app.utils import escape_enum
 from app.utils import pymysql_encode
 
@@ -270,8 +272,7 @@ async def lastFM(
     beatmap_id_or_hidden_flag: str = Query(
         ...,
         description=(
-            "This flag is normally a beatmap ID, but is also "
-            "used as a hidden anticheat flag within osu!"
+            "This flag is normally a beatmap ID, but is also " "used as a hidden anticheat flag within osu!"
         ),
         alias="b",
     ),
@@ -360,8 +361,7 @@ DIRECT_SET_INFO_FMTSTR = (
 )
 
 DIRECT_MAP_INFO_FMTSTR = (
-    "[{DifficultyRating:.2f}⭐] {DiffName} "
-    "{{cs: {CS} / od: {OD} / ar: {AR} / hp: {HP}}}@{Mode}"
+    "[{DifficultyRating:.2f}⭐] {DiffName} " "{{cs: {CS} / od: {OD} / ar: {AR} / hp: {HP}}}@{Mode}"
 )
 
 
@@ -474,9 +474,7 @@ async def osuSearchSetHandler(
 
     # Get all set data.
     bmapset = await app.state.services.database.fetch_one(
-        "SELECT DISTINCT set_id, artist, "
-        "title, status, creator, last_update "
-        f"FROM maps WHERE {k} = :v",
+        "SELECT DISTINCT set_id, artist, " "title, status, creator, last_update " f"FROM maps WHERE {k} = :v",
         {"v": v},
     )
     if bmapset is None:
@@ -535,7 +533,7 @@ async def osuSubmitModularSelector(
     # through but ac'd if not found?
     # TODO: validate token format
     # TODO: save token in the database
-    token: str | None = Header(None), # ppysb feature: none when using ppysb client
+    token: str | None = Header(None),  # ppysb feature: none when using ppysb client
     # TODO: do ft & st contain pauses?
     exited_out: bool = Form(..., alias="x"),
     fail_time: int = Form(..., alias="ft"),
@@ -574,6 +572,25 @@ async def osuSubmitModularSelector(
         osu_version,
     )
 
+    # ppy.sb feature
+    context = OsuSubmitModularContext(
+        request=request,
+        raw=OsuSubmitModularRaw(
+            client_hash=client_hash_decoded,
+            osu_version=osu_version,
+            exited_out=exited_out,
+            fail_time=fail_time,
+            visual_settings_b64=visual_settings_b64,
+            updated_beatmap_hash=updated_beatmap_hash,
+            storyboard_md5=storyboard_md5,
+            iv_b64=iv_b64,
+            unique_ids=unique_ids,
+            score_time=score_time,
+            pw_md5=pw_md5,
+        ),
+    )
+    # end ppy.sb feature
+
     # fetch map & player
 
     bmap_md5 = score_data[0]
@@ -601,10 +618,25 @@ async def osuSubmitModularSelector(
     score.bmap = bmap
     score.player = player
 
+    # ppy.sb feature
+    context.map = bmap
+    context.player = player
+    context.score = score
+    # end ppy.sb feature
+
     ## perform checksum validation
 
     asyncio.ensure_future(
-        anticheat.validate_checksum(unique_ids, osu_version, client_hash_decoded, storyboard_md5, bmap_md5, updated_beatmap_hash, player, score)
+        anticheat.validate_checksum(
+            unique_ids,
+            osu_version,
+            client_hash_decoded,
+            storyboard_md5,
+            bmap_md5,
+            updated_beatmap_hash,
+            player,
+            score,
+        )
     )
 
     # we should update their activity no matter
@@ -690,9 +722,7 @@ async def osuSubmitModularSelector(
                     if score.mods:
                         ann.insert(1, f"+{score.mods!r}")
 
-                    scoring_metric = (
-                        "pp" if score.mode >= GameMode.RELAX_OSU else "score"
-                    )
+                    scoring_metric = "pp" if score.mode >= GameMode.RELAX_OSU else "score"
 
                     # If there was previously a score on the map, add old #1.
                     prev_n1 = await app.state.services.database.fetch_one(
@@ -765,6 +795,13 @@ async def osuSubmitModularSelector(
             },
         )
 
+    # ppy.sb feature
+    if not (context.is_post_submit(context)):  # this will always be true we set all data before
+        return Response(b"")
+
+    asyncio.ensure_future(sb_patcher_usecases.osu_submit_modular_handler(context))
+    # end ppy.sb feature
+
     if score.passed:
         replay_data = await replay_file.read()
 
@@ -784,8 +821,12 @@ async def osuSubmitModularSelector(
                 if score.player.is_online:
                     score.player.logout()
 
+        # ppy.sb feature
+
         # suspect the score after the replay file written
         asyncio.ensure_future(anticheat.validate_replay(player, score))
+
+        # end ppy.sb feature
 
     """ Update the user's & beatmap's stats """
 
@@ -847,8 +888,7 @@ async def osuSubmitModularSelector(
                     unlocked_achievements.append(server_achievement)
 
             achievements_str = "/".join(
-                format_achievement_string(a["file"], a["name"], a["desc"])
-                for a in unlocked_achievements
+                format_achievement_string(a["file"], a["name"], a["desc"]) for a in unlocked_achievements
             )
         else:
             achievements_str = ""
@@ -1072,8 +1112,8 @@ async def get_leaderboard_scores(
     if is_streaming:
         for score in score_rows:
             # we replaced the username with that user's userid, also, return a fake userid to hide avatar.
-            score['name'] = f"Player{str(score['userid'])}"
-            score['userid'] = -1     
+            score["name"] = f"Player{str(score['userid'])}"
+            score["userid"] = -1
 
     return score_rows, personal_best_score_row
 
@@ -1133,9 +1173,7 @@ async def getScores(
         if not player.restricted:
             app.state.sessions.players.enqueue(app.packets.user_stats(player))
 
-    scoring_metric: Literal["pp", "score"] = (
-        "pp" if mode >= GameMode.RELAX_OSU else "score"
-    )
+    scoring_metric: Literal["pp", "score"] = "pp" if mode >= GameMode.RELAX_OSU else "score"
 
     bmap = await Beatmap.from_md5(map_md5, set_id=map_set_id)
     has_set_id = map_set_id > 0
@@ -1185,14 +1223,14 @@ async def getScores(
 
     if app.state.services.datadog:
         app.state.services.datadog.increment("bancho.leaderboards_served")
-        
+
     ### ppysb feature begin
 
     # if bmap.status < RankedStatus.Ranked:
-        # only show leaderboards for ranked,
-        # approved, qualified, or loved maps.
-        # return f"{int(bmap.status)}|false".encode()
-        
+    # only show leaderboards for ranked,
+    # approved, qualified, or loved maps.
+    # return f"{int(bmap.status)}|false".encode()
+
     ### ppysb feature end
 
     # fetch scores & personal best
@@ -1214,9 +1252,9 @@ async def getScores(
     map_avg_rating = await ratings_repo.get_map_rating(map_md5=map_md5)
 
     ## construct response for osu! client
-    
+
     ### ppysb feature begin
-    
+
     response_status = bmap.status
     if bmap.status < RankedStatus.Ranked:
         response_status = RankedStatus.Approved
@@ -1229,7 +1267,7 @@ async def getScores(
         # TODO: server side beatmap offsets
         f"0\n{bmap.full_name}\n{map_avg_rating}",
     ]
-    
+
     ### ppysb feature end
 
     if not score_rows:
@@ -1237,16 +1275,8 @@ async def getScores(
         return Response("\n".join(response_lines).encode())
 
     if personal_best_score_row is not None:
-        user_clan = (
-            await clans_repo.fetch_one(id=player.clan_id)
-            if player.clan_id is not None
-            else None
-        )
-        display_name = (
-            f"[{user_clan['tag']}] {player.name}"
-            if user_clan is not None
-            else player.name
-        )
+        user_clan = await clans_repo.fetch_one(id=player.clan_id) if player.clan_id is not None else None
+        display_name = f"[{user_clan['tag']}] {player.name}" if user_clan is not None else player.name
         response_lines.append(
             SCORE_LISTING_FMTSTR.format(
                 **personal_best_score_row,
@@ -1463,14 +1493,12 @@ async def get_screenshot(
         path=screenshot_path,
         media_type=media_type,
     )
-    
+
+
 geo_cache: dict = {}
-    
-async def get_osz_url(
-    headers: Mapping[str, str],
-    beatmapset_id: str,
-    no_video: bool
-) -> str:
+
+
+async def get_osz_url(headers: Mapping[str, str], beatmapset_id: str, no_video: bool) -> str:
     ip_address = app.state.services.ip_resolver.get_ip(headers)
     geo_country = geo_cache.get(ip_address)
     if not geo_country:
@@ -1483,7 +1511,6 @@ async def get_osz_url(
         return f"https://dl.sayobot.cn/beatmaps/download/{prefix}/{beatmapset_id}"
     query_str = f"{beatmapset_id}?n={int(not no_video)}"
     return f"{app.settings.MIRROR_DOWNLOAD_ENDPOINT}/{query_str}"
-    
 
 
 @router.get("/d/{map_set_id}")
