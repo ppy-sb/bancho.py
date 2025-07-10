@@ -1,4 +1,4 @@
-""" cho: handle cho packets from the osu! client """
+"""cho: handle cho packets from the osu! client"""
 
 from __future__ import annotations
 
@@ -186,9 +186,7 @@ async def bancho_view_matches() -> Response:
 
     matches = [m for m in app.state.sessions.matches if m is not None]
 
-    match_id_max_length = (
-        len(str(max(match.id for match in matches))) if len(matches) else 0
-    )
+    match_id_max_length = len(str(max(match.id for match in matches))) if len(matches) else 0
 
     return HTMLResponse(
         f"""
@@ -431,9 +429,7 @@ class SendMessage(BasePacket):
                 if bmap:
                     # parse mode_vn int from regex
                     if r_match["mode_vn"] is not None:
-                        mode_vn = {"Taiko": 1, "CatchTheBeat": 2, "osu!mania": 3}[
-                            r_match["mode_vn"]
-                        ]
+                        mode_vn = {"Taiko": 1, "CatchTheBeat": 2, "osu!mania": 3}[r_match["mode_vn"]]
                     else:
                         # use player mode if not specified
                         mode_vn = player.status.mode.as_vanilla
@@ -510,8 +506,7 @@ WELCOME_NOTIFICATION = app.packets.notification(
 )
 
 OFFLINE_NOTIFICATION = app.packets.notification(
-    "The server is currently running in offline mode; "
-    "some features will be unavailable.",
+    "The server is currently running in offline mode; " "some features will be unavailable.",
 )
 
 
@@ -556,7 +551,9 @@ def parse_login_data(data: bytes) -> LoginData:
         adapters_md5,
         uninstall_md5,
         disk_signature_md5,
-    ) = client_hashes[:-1].split(":", maxsplit=4)
+    ) = client_hashes[
+        :-1
+    ].split(":", maxsplit=4)
 
     return {
         "username": username,
@@ -796,17 +793,17 @@ async def handle_osu_login_request(
             ),
         }
 
-    if osu_version.stream is OsuStream.TOURNEY and not (
-        user_info["priv"] & Privileges.DONATOR
-        and user_info["priv"] & Privileges.UNRESTRICTED
-    ):
-        # trying to use tourney client with insufficient privileges.
-        return {
-            "osu_token": "no",
-            "response_body": app.packets.login_reply(
-                LoginFailureReason.AUTHENTICATION_FAILED,
-            ),
-        }
+    # if osu_version.stream is OsuStream.TOURNEY and not (
+    #     user_info["priv"] & Privileges.DONATOR
+    #     and user_info["priv"] & Privileges.UNRESTRICTED
+    # ):
+    #     # trying to use tourney client with insufficient privileges.
+    #     return {
+    #         "osu_token": "no",
+    #         "response_body": app.packets.login_reply(
+    #             LoginFailureReason.AUTHENTICATION_FAILED,
+    #         ),
+    #     }
 
     """ login credentials verified """
 
@@ -1172,10 +1169,7 @@ class SpectateFrames(BasePacket):
         # sheer rate of usage of these packets in spectator mode.
 
         # data = app.packets.spectateFrames(self.frame_bundle.raw_data)
-        data = (
-            struct.pack("<HxI", 15, len(self.frame_bundle.raw_data))
-            + self.frame_bundle.raw_data
-        )
+        data = struct.pack("<HxI", 15, len(self.frame_bundle.raw_data)) + self.frame_bundle.raw_data
 
         # enqueue the data
         # to all spectators.
@@ -1309,9 +1303,7 @@ class SendPrivateMessage(BasePacket):
                     if bmap:
                         # parse mode_vn int from regex
                         if r_match["mode_vn"] is not None:
-                            mode_vn = {"Taiko": 1, "CatchTheBeat": 2, "osu!mania": 3}[
-                                r_match["mode_vn"]
-                            ]
+                            mode_vn = {"Taiko": 1, "CatchTheBeat": 2, "osu!mania": 3}[r_match["mode_vn"]]
                         else:
                             # use player mode if not specified
                             mode_vn = player.status.mode.as_vanilla
@@ -1335,10 +1327,7 @@ class SendPrivateMessage(BasePacket):
                             expected_md5=bmap.md5,
                         )
                         if not osu_file_available:
-                            resp_msg = (
-                                "Mapfile could not be found; "
-                                "this incident has been reported."
-                            )
+                            resp_msg = "Mapfile could not be found; " "this incident has been reported."
                         else:
                             # calculate pp for common generic values
                             pp_calc_st = time.time_ns()
@@ -1681,9 +1670,7 @@ class MatchChangeSettings(BasePacket):
         elif player.match.map_id == -1:
             if player.match.prev_map_id != self.match_data.map_id:
                 # new map has been chosen, send to match chat.
-                map_url = (
-                    f"https://osu.{app.settings.DOMAIN}/b/{self.match_data.map_id}"
-                )
+                map_url = f"https://osu.{app.settings.DOMAIN}/b/{self.match_data.map_id}"
                 map_embed = f"[{map_url} {self.match_data.map_name}]"
                 player.match.chat.send_bot(f"Selected: {map_embed}.")
 
@@ -1706,9 +1693,7 @@ class MatchChangeSettings(BasePacket):
             # if theres currently a scrim going on, only allow
             # team type to change by using the !mp teams command.
             if player.match.is_scrimming:
-                _team = ("head-to-head", "tag-coop", "team-vs", "tag-team-vs")[
-                    self.match_data.team_type
-                ]
+                _team = ("head-to-head", "tag-coop", "team-vs", "tag-team-vs")[self.match_data.team_type]
 
                 msg = (
                     "Changing team type while scrimming will reset "
@@ -1813,9 +1798,7 @@ class MatchComplete(BasePacket):
             if s.player is not None and s.status != SlotStatus.complete
         ]
 
-        was_playing = [
-            s for s in player.match.slots if s.player and s.player.id not in not_playing
-        ]
+        was_playing = [s for s in player.match.slots if s.player and s.player.id not in not_playing]
 
         player.match.unready_players(expected=SlotStatus.complete)
         player.match.reset_players_loaded_status()
