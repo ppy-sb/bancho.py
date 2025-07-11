@@ -718,6 +718,8 @@ async def handle_osu_login_request(
         osu_client_stream = osu_version.stream.value
         if osu_client_stream in ("stable", "beta"):
             osu_client_stream += "40"  # TODO: why?
+        if osu_client_stream == "tourney":
+            osu_client_stream = "stable40"
 
         allowed_client_versions = set()
 
