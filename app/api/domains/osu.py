@@ -1,8 +1,8 @@
 """osu: handle connections from web, api, and beyond?"""
 
 from __future__ import annotations
-import asyncio
 
+import asyncio
 import copy
 import hashlib
 import random
@@ -71,7 +71,8 @@ from app.repositories import scores as scores_repo
 from app.repositories import stats as stats_repo
 from app.repositories import users as users_repo
 from app.repositories.achievements import Achievement
-from app.usecases import achievements as achievements_usecases, anticheat
+from app.usecases import achievements as achievements_usecases
+from app.usecases import anticheat
 from app.usecases import user_achievements as user_achievements_usecases
 from app.utils import escape_enum
 from app.utils import pymysql_encode
@@ -602,9 +603,18 @@ async def osuSubmitModularSelector(
     score.player = player
 
     ## perform checksum validation
-    
-    asyncio.ensure_future(
-        anticheat.validate_checksum(unique_ids, osu_version, client_hash_decoded, storyboard_md5, bmap_md5, updated_beatmap_hash, player, score)
+
+    asyncio.create_task(
+        anticheat.validate_checksum(
+            unique_ids,
+            osu_version,
+            client_hash_decoded,
+            storyboard_md5,
+            bmap_md5,
+            updated_beatmap_hash,
+            player,
+            score,
+        )
     )
 
     # we should update their activity no matter
@@ -785,7 +795,7 @@ async def osuSubmitModularSelector(
                     score.player.logout()
 
         # suspect the score after the replay file written
-        asyncio.ensure_future(anticheat.validate_replay(player, score))
+        asyncio.create_task(anticheat.validate_replay(score, score.bmap, player))
 
     """ Update the user's & beatmap's stats """
 
