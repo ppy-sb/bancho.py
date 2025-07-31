@@ -605,7 +605,7 @@ async def osuSubmitModularSelector(
 
     ## perform checksum validation
 
-    asyncio.ensure_future(
+    asyncio.create_task(
         anticheat.validate_checksum(
             unique_ids,
             osu_version,
@@ -796,7 +796,7 @@ async def osuSubmitModularSelector(
                     score.player.logout()
 
         # suspect the score after the replay file written
-        asyncio.ensure_future(anticheat.validate_replay(player, score))
+        asyncio.create_task(anticheat.validate_replay(score, score.bmap, player))
 
     """ Update the user's & beatmap's stats """
 
