@@ -10,7 +10,7 @@ import respx
 from fastapi import status
 from httpx import AsyncClient
 
-from app import encryption
+from app import encryption, settings
 from testing.sample_data import sample_beatmap_data
 
 
@@ -21,7 +21,7 @@ async def test_score_submission(
     # ARRANGE
 
     username = f"test-{secrets.token_hex(4)}"
-    email_address = f"cmyui-{secrets.token_hex(4)}@akatsuki.pw"
+    email_address = f"cmyui-{secrets.token_hex(4)}@" + settings.DOMAIN
     passwd_plaintext = "myPassword321$"
     passwd_md5 = hashlib.md5(passwd_plaintext.encode()).hexdigest()
 
@@ -34,7 +34,7 @@ async def test_score_submission(
     response = await http_client.post(
         url="/users",
         headers={
-            "Host": "osu.cmyui.xyz",
+            "Host": f"osu.{settings.DOMAIN}",
             "X-Forwarded-For": "127.0.0.1",
             "X-Real-IP": "127.0.0.1",
         },
@@ -94,7 +94,7 @@ async def test_score_submission(
     response = await http_client.post(
         url="/",
         headers={
-            "Host": "c.cmyui.xyz",
+            "Host": f"c.{settings.DOMAIN}",
             "User-Agent": "osu!",
             "CF-Connecting-IP": "127.0.0.1",
         },
@@ -212,7 +212,7 @@ async def test_score_submission(
     # ACT
     response = await http_client.post(
         url="/web/osu-submit-modular-selector.php",
-        headers={"Host": "osu.cmyui.xyz", "token": "auth-token"},
+        headers={"Host": "osu.", "token": "auth-token"},
         data={
             "x": exited_out,
             "ft": fail_time,
@@ -239,5 +239,5 @@ async def test_score_submission(
     assert response.status_code == status.HTTP_200_OK
     assert (
         response.read()
-        == b"beatmapId:315|beatmapSetId:141|beatmapPlaycount:1|beatmapPasscount:1|approvedDate:2014-05-18 15:41:48|\n|chartId:beatmap|chartUrl:https://osu.cmyui.xyz/s/141|chartName:Beatmap Ranking|rankBefore:|rankAfter:1|rankedScoreBefore:|rankedScoreAfter:26810|totalScoreBefore:|totalScoreAfter:26810|maxComboBefore:|maxComboAfter:52|accuracyBefore:|accuracyAfter:81.94|ppBefore:|ppAfter:10.448|onlineScoreId:1|\n|chartId:overall|chartUrl:https://cmyui.xyz/u/3|chartName:Overall Ranking|rankBefore:|rankAfter:1|rankedScoreBefore:|rankedScoreAfter:26810|totalScoreBefore:|totalScoreAfter:26810|maxComboBefore:|maxComboAfter:52|accuracyBefore:|accuracyAfter:81.94|ppBefore:|ppAfter:11|achievements-new:osu-skill-pass-4+Insanity Approaches+You're not twitching, you're just ready./all-intro-hidden+Blindsight+I can see just perfectly"
+        == f"beatmapId:315|beatmapSetId:141|beatmapPlaycount:1|beatmapPasscount:1|approvedDate:2014-05-18 15:41:48|\n|chartId:beatmap|chartUrl:https://osu.{settings.DOMAIN}/s/141|chartName:Beatmap Ranking|rankBefore:|rankAfter:1|rankedScoreBefore:|rankedScoreAfter:26810|totalScoreBefore:|totalScoreAfter:26810|maxComboBefore:|maxComboAfter:52|accuracyBefore:|accuracyAfter:81.94|ppBefore:|ppAfter:10.448|onlineScoreId:1|\n|chartId:overall|chartUrl:https://osu.{settings.DOMAIN}/u/3|chartName:Overall Ranking|rankBefore:|rankAfter:1|rankedScoreBefore:|rankedScoreAfter:26810|totalScoreBefore:|totalScoreAfter:26810|maxComboBefore:|maxComboAfter:52|accuracyBefore:|accuracyAfter:81.94|ppBefore:|ppAfter:11|achievements-new:osu-skill-pass-4+Insanity Approaches+You're not twitching, you're just ready./all-intro-hidden+Blindsight+I can see just perfectly".encode()
     )

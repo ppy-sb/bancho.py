@@ -10,6 +10,7 @@ from asgi_lifespan._types import ASGIApp
 from fastapi import status
 
 from app.api.init_api import asgi_app
+from app import settings
 
 # TODO: fixtures for postgres database connection(s) for itests
 
@@ -50,7 +51,10 @@ async def app() -> AsyncIterator[ASGIApp]:
 
 @pytest.fixture
 async def http_client(app: ASGIApp) -> AsyncIterator[httpx.AsyncClient]:
-    async with httpx.AsyncClient(app=app, base_url="http://test") as client:
+    url = f"http://osu.{settings.DOMAIN}"
+    if settings.APP_PORT:
+        url += f":{settings.APP_PORT}"
+    async with httpx.AsyncClient(app=app, base_url=url) as client:
         yield client
 
 
