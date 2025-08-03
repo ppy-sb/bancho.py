@@ -632,13 +632,26 @@ def parse_adapters_string(adapters_string: str) -> tuple[list[str], bool]:
 
 
 async def authenticate(
-    username: str,
+    handle: str,
     untrusted_password: bytes,
 ) -> users_repo.User | None:
     user_info = await users_repo.fetch_one(
-        name=username,
+        name=handle,
         fetch_all_fields=True,
+    ) or (
+        await users_repo.fetch_one(
+            id=int(handle),
+            fetch_all_fields=True,
+        )
+        if handle.isdigit()
+        else (
+            await users_repo.fetch_one(
+                email=handle,
+                fetch_all_fields=True,
+            )
+        )
     )
+
     if user_info is None:
         return None
 
@@ -770,7 +783,23 @@ async def handle_osu_login_request(
 
     # disallow multiple sessions from a single user
     # with the exception of tourney spectator clients
-    player = app.state.sessions.players.get(name=login_data["username"])
+    # ppy.sb feature: allow login with id or email
+    player = app.state.sessions.players.get(name=login_data["username"]) or (
+        app.state.sessions.players.get(
+            id=int(login_data["username"]),
+        )
+        if login_data["username"].isdigit()
+        else None
+    )
+    if player is None:
+        email_user = await users_repo.fetch_one(
+            email=login_data["username"],
+            fetch_all_fields=True,
+        )
+        if email_user:
+            player = app.state.sessions.players.get(id=email_user["id"])
+    # end ppy.sb feature
+
     if player and osu_version.stream != "tourney":
         # check if the existing session is still active
         if (login_time - player.last_recv_time) < 10:
