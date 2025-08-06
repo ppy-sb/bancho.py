@@ -846,7 +846,9 @@ async def osuSubmitModularSelector(
         if score.bmap.awards_ranked_pp and not score.player.restricted:
             unlocked_achievements: list[Achievement] = []
 
-            locked_achievements = await achievements_usecases.fetch_user_locked(user_id=score.player.id)
+            locked_achievements = await achievements_usecases.fetch_user_locked(
+                user_id=score.player.id
+            )
 
             for server_achievement in locked_achievements:
                 achievement_condition = server_achievement["cond"]
@@ -968,11 +970,15 @@ async def osuRate(
         if map_md5 not in app.state.cache.beatmap:
             return Response(b"no exist")
 
-        cached = app.state.cache.beatmap[map_md5]
+        ### ppysb feature begin
 
-        # only allow rating on maps with a leaderboard.
-        if cached.status < RankedStatus.Ranked:
-            return Response(b"not ranked")
+        # cached = app.state.cache.beatmap[map_md5]
+
+        # # only allow rating on maps with a leaderboard.
+        # if cached.status < RankedStatus.Ranked:
+        #     return Response(b"not ranked")
+
+        ### ppysb feature end
 
         # osu! client is checking whether we can rate the map or not.
         # the client hasn't rated the map, so simply
@@ -1083,8 +1089,8 @@ async def get_leaderboard_scores(
     if is_streaming:
         for score in score_rows:
             # we replaced the username with that user's userid, also, return a fake userid to hide avatar.
-            score['name'] = f"Player{str(score['userid'])}"
-            score['userid'] = -1     
+            score["name"] = f"Player{str(score['userid'])}"
+            score["userid"] = -1
 
     return score_rows, personal_best_score_row
 
