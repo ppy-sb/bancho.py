@@ -1,12 +1,20 @@
 import asyncio
 from dataclasses import dataclass
 from typing import Any, Coroutine, Never, Optional, Union, TypeGuard, Callable, Self
+from enum import Enum
 
 from app.objects.beatmap import Beatmap
 from app.objects.score import Score
 
 start = int
 duration = int
+
+
+class GammaChange(Enum):
+    DecreaseQuad = "DecreaseQuad"
+    IncreaseQuad = "IncreaseQuad"
+    IncreaseQuart = "IncreaseQuart"
+    IncreaseExpo = "IncreaseExpo"
 
 
 @dataclass
@@ -19,6 +27,8 @@ class SbPatcherScoreMetaRawV2:
     h: str
     """patcher client version"""
     v: str
+    """gamma change"""
+    g: GammaChange | None = None
 
     def any_data(self) -> bool:
         return self.p is not None
@@ -39,6 +49,7 @@ class SbPatcherScoreMetaRawV2:
     def db_serialize(self) -> dict[str, Any]:
         return {
             "p": self.p,
+            "g": self.g,
         }
 
 

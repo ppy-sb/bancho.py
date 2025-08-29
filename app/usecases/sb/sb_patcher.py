@@ -4,8 +4,9 @@ from typing import Any
 import app
 from app.logging import Ansi
 from app.logging import log
+from app.objects.score import SubmissionStatus
 from app.repositories import sb_patcher_scores_meta as patcher_scores_repo
-from app.objects.sb.patcher_score_meta import SbPatcherScoreMeta, SbPatcherScoreMetaRawV2
+from app.objects.sb.patcher_score_meta import GammaChange, SbPatcherScoreMeta, SbPatcherScoreMetaRawV2
 from app.usecases.sb.osu_submit_modular_context import OsuSubmitModularContextPostSubmit
 
 
@@ -37,7 +38,14 @@ async def osu_submit_modular_handler(context: OsuSubmitModularContextPostSubmit)
     try:
         if json_sb_patcher_meta:
             patcher_meta: dict[str, Any] = json.loads(json_sb_patcher_meta)
-            raw = SbPatcherScoreMetaRawV2(p=patcher_meta["p"], h=patcher_meta["h"], v=patcher_meta["v"])
+            raw = SbPatcherScoreMetaRawV2(
+                p=patcher_meta["p"], h=patcher_meta["h"], v=patcher_meta["v"], g=patcher_meta.get("g")
+            )
+
+            # unrank gamma decrease
+            # not activated yet.
+            # if raw.g == GammaChange.DecreaseQuad:
+            #     context.score.status = SubmissionStatus.FAILED
 
             # save extra metadata
             db_meta = SbPatcherScoreMeta(raw=raw)
