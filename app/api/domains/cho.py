@@ -212,6 +212,10 @@ async def bancho_handler(
     request: Request,
     osu_token: str | None = Header(None),
     user_agent: Literal["osu!"] = Header(...),
+    # ppy.sb feature
+    # PercyDan Injector Meta Quest
+    x_sb_pd_injector: str | None = Header(None),
+    # End ppy.sb feature
 ) -> Response:
     ip = app.state.services.ip_resolver.get_ip(request.headers)
 
@@ -259,7 +263,13 @@ async def bancho_handler(
     player.last_recv_time = time.time()
 
     response_data = player.dequeue()
-    return Response(content=response_data)
+
+    # ppy.sb feature
+    resp = Response(content=response_data)
+    if x_sb_pd_injector is not None:
+        resp.headers.append("x-pd-allow-injector", "1")
+    # End ppy.sb feature
+    return resp
 
 
 """ Packet logic """
