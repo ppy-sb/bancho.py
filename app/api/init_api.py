@@ -142,7 +142,8 @@ def init_exception_handlers(asgi_app: BanchoAPI) -> None:
 
 def init_middlewares(asgi_app: BanchoAPI) -> None:
     """Initialize our app's middleware stack."""
-    asgi_app.add_middleware(middlewares.MetricsMiddleware)
+    if app.settings.DEBUG:
+        asgi_app.add_middleware(middlewares.MetricsMiddleware)
 
     @asgi_app.middleware("http")
     async def http_middleware(
