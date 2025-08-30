@@ -17,6 +17,12 @@ from app.repositories.mail import MailTable
 router = APIRouter(tags=["API ppy.sb"], prefix="/sb")
 
 
+@router.get("/pd/injector")
+async def pd_injector_meta_options() -> Success[str]:
+    """percyDan injector check allowance"""
+    return responses.success("accept")
+
+
 @router.post("/players/{player_id}/notify")
 async def notify_player(
     player_id: int,
