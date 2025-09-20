@@ -177,33 +177,54 @@ async def bancho_view_matches() -> Response:
 
     ON_GOING = "ongoing"
     IDLE = "idle"
-    max_status_length = len(max(ON_GOING, IDLE))
 
     BEATMAP = "beatmap"
     HOST = "host"
-    max_properties_length = max(len(BEATMAP), len(HOST))
 
     matches = [m for m in app.state.sessions.matches if m is not None]
-
-    match_id_max_length = (
-        len(str(max(match.id for match in matches))) if len(matches) else 0
-    )
 
     return HTMLResponse(
         f"""
 <!DOCTYPE html>
-<body style="font-family: monospace;  white-space: pre-wrap;"><a href="/">back</a>
-matches:
-{new_line.join(
-    f'''{(ON_GOING if m.in_progress else IDLE):<{max_status_length}} ({m.id:>{match_id_max_length}}): {m.name}
--- '''
-    + f"{new_line}-- ".join([
-        f'{BEATMAP:<{max_properties_length}}: {m.map_name}',
-        f'{HOST:<{max_properties_length}}: <{m.host.id}> {m.host.safe_name}'
-    ]) for m in matches
-)}
+<head>
+<meta charset="utf-8">
+<style>
+table, th, td {{
+  border: 1px solid black;
+  border-collapse: collapse;
+}}
+</style>
+</head>
+<body style="font-family: monospace; white-space: pre-wrap;">
+<a href="/">back</a>
+<table>
+  <thead>
+      <tr>
+        <th>id</th>
+        <th>room</th>
+        <th>status</th>
+        <th>host</th>
+        <th>beatmap</th>
+      </tr>
+  </thead>
+  <tbody>
+  <tr>
+    <th colspan="99">{len(matches)} matches.</th>
+  </tr>
+    {new_line.join([
+f'''<tr>
+      <td style="text-align: right">{m.id}</td>
+      <td>{m.name}</td>
+      <td>{ON_GOING if m.in_progress else IDLE}</td>
+      <td><{m.host.id}> {m.host.safe_name}</td>
+      <td>{m.map_name}</td>
+    </tr>'''
+    for m in matches])}
+  </tbody>
+</table>
 </body>
-</html>""",
+</html>
+""",
     )
 
 
