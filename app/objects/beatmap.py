@@ -8,12 +8,15 @@ from datetime import datetime
 from datetime import timedelta
 from enum import IntEnum
 from enum import unique
+from math import ceil
 from pathlib import Path
+from random import shuffle
 from typing import Any
 from typing import TypedDict
+import itertools
 
 import httpx
-from tenacity import retry
+from tenacity import RetryCallState, retry
 from tenacity.stop import stop_after_attempt
 
 import app.settings
@@ -40,25 +43,47 @@ class BeatmapApiResponse(TypedDict):
     status_code: int
 
 
+api_get_beatmaps_lb: list[tuple[str, str | None]] = [(("bancho", k)) for k in app.settings.OSU_API_KEYS]
+for i in range(max(1, ceil(len(api_get_beatmaps_lb) / 3))):
+    api_get_beatmaps_lb.append(("osu.direct", None))
+
+shuffle(api_get_beatmaps_lb)
+next_api = itertools.cycle(api_get_beatmaps_lb)
+
+
 @retry(reraise=True, stop=stop_after_attempt(3))
+def log_retry(v: RetryCallState) -> None:
+    if v.attempt_number == 1:
+        return
+    if app.settings.DEBUG:
+        log(f"Retrying {v.attempt_number}", Ansi.LYELLOW)
+
+
+@retry(reraise=True, stop=stop_after_attempt(3), before=log_retry)
 async def api_get_beatmaps(**params: Any) -> BeatmapApiResponse:
     """\
     Fetch data from the osu!api with a beatmap's md5.
 
     Optionally use osu.direct's API if the user has not provided an osu! api key.
     """
-    if app.settings.DEBUG:
-        log(f"Doing api (getbeatmaps) request {params}", Ansi.LMAGENTA)
 
-    if app.settings.OSU_API_KEY:
+    destination, api_key = next(next_api)
+
+    if app.settings.DEBUG:
+        log(f"Doing api (getbeatmaps) request to {destination} {params}", Ansi.LMAGENTA)
+
+    if destination == "bancho":
         # https://github.com/ppy/osu-api/wiki#apiget_beatmaps
         url = "https://old.ppy.sh/api/get_beatmaps"
-        params["k"] = str(app.settings.OSU_API_KEY)
+        if api_key:
+            params["k"] = api_key
         return unwrap_bancho_api_response(await app.state.services.http_client.get(url, params=params))
-    else:
+    elif destination == "osu.direct":
         # https://osu.direct/doc
         url = "https://osu.direct/api/get_beatmaps"
         return unwrap_osu_direct_api_response(await app.state.services.http_client.get(url, params=params))
+    else:
+        raise NotImplementedError
 
 
 def unwrap_osu_direct_api_response(response: httpx.Response) -> BeatmapApiResponse:

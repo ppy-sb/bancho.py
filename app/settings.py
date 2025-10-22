@@ -31,6 +31,7 @@ REDIS_AUTH_STRING = f"{REDIS_USER}:{REDIS_PASS}@" if REDIS_USER and REDIS_PASS e
 REDIS_DSN = f"redis://{REDIS_AUTH_STRING}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 OSU_API_KEY = os.environ.get("OSU_API_KEY") or None
+OSU_API_KEYS = {v for k, v in os.environ.items() if k.startswith("OSU_API_KEY") and v}
 
 DOMAIN = os.environ["DOMAIN"]
 MIRROR_SEARCH_ENDPOINT = os.environ["MIRROR_SEARCH_ENDPOINT"]
