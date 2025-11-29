@@ -1,29 +1,19 @@
 from __future__ import annotations
 
-
-from datetime import datetime
 import json
-from typing import Any
 from typing import cast
 
 from sqlalchemy import Column
 from sqlalchemy import Boolean
 from sqlalchemy import VARCHAR
-from sqlalchemy import Index
 from sqlalchemy import ForeignKey
 from sqlalchemy import JSON
-from sqlalchemy import func
 from sqlalchemy import insert
 from sqlalchemy import select
-from sqlalchemy import update
 from sqlalchemy.dialects.mysql import BIGINT
 
-from app.objects.beatmap import Beatmap
 from app.objects.sb.patcher_score_meta import SealedSbPatcherScoreMeta, SbPatcherScoreMetaRaw
-from app.objects.score import Score
 import app.state.services
-from app._typing import UNSET
-from app._typing import _UnsetSentinel
 from app.repositories import Base
 
 

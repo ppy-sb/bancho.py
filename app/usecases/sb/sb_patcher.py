@@ -4,9 +4,8 @@ from typing import Any
 import app
 from app.logging import Ansi
 from app.logging import log
-from app.objects.score import SubmissionStatus
 from app.repositories import sb_patcher_scores_meta as patcher_scores_repo
-from app.objects.sb.patcher_score_meta import GammaChange, SbPatcherScoreMeta, SbPatcherScoreMetaRawV2
+from app.objects.sb.patcher_score_meta import SbPatcherScoreMeta, SbPatcherScoreMetaRawV2
 from app.usecases.sb.osu_submit_modular_context import OsuSubmitModularContextPostSubmit
 
 

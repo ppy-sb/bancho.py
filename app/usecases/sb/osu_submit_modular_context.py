@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TypeGuard, Annotated, cast
+from typing import TypeGuard, cast
 from fastapi.requests import Request
 
 from app.objects.beatmap import Beatmap
