@@ -79,6 +79,7 @@ databases = { version = "^0.8.0", extras = ["mysql"] }
 python-json-logger = "^2.0.7"
 rosu-pp-py = { git = "https://github.com/ppy-sb/rosu-pp-py" }
 circleguard = "^5.4.1"
+anyio = "^4.9.0"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "3.6.1"
