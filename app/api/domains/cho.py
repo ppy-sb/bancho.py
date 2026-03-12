@@ -890,6 +890,7 @@ async def handle_osu_login_request(
     # In these cases, there's not a whole lot we can do -- we'll allow them thru.
     INACTIONABLE_DISK_SIGNATURE_MD5S: list[str] = [
         hashlib.md5(b"0").hexdigest(),  # "0" is likely the most common variant
+        hashlib.md5(hashlib.md5(b"0").hexdigest().encode()).hexdigest(),  # double-hashed "0": md5(md5("0"))
     ]
 
     if login_data["disk_signature_md5"] not in INACTIONABLE_DISK_SIGNATURE_MD5S:
