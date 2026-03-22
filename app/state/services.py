@@ -126,19 +126,68 @@ class IPResolver:
         return ip
 
 
+_UNKNOWN_GEOLOC: Geolocation = {
+    "latitude": -82.8628,
+    "longitude": 135.0,
+    "country": {"acronym": "aq", "numeric": country_codes["aq"]},
+}
+
+
 async def fetch_geoloc(
     ip: IPAddress,
     headers: Mapping[str, str] | None = None,
 ) -> Geolocation | None:
     """Attempt to fetch geolocation data by any means necessary."""
-    geoloc = None
     if headers is not None:
         geoloc = _fetch_geoloc_from_headers(headers)
-
-    if geoloc is None:
+        if geoloc is not None:
+            return geoloc
+    try:
         geoloc = await _fetch_geoloc_from_ip(ip)
+        if geoloc is not None:
+            return geoloc
+    except Exception:
+        try:
+            log("ip-api.com unavailable, falling back to ipapi.co.", Ansi.LYELLOW)
+            geoloc = await _fetch_geoloc_from_ip_ipapi(ip)
+            if geoloc is not None:
+                return geoloc
+        except Exception:
+            log("Failed to get geoloc data from all providers; using unknown.", Ansi.LRED)
+            return _UNKNOWN_GEOLOC
+        return _UNKNOWN_GEOLOC
 
-    return geoloc
+
+async def _fetch_geoloc_from_ip_ipapi(ip: IPAddress) -> Geolocation | None:
+    """Fetch geolocation data based on ip (using ipapi.co as fallback)."""
+    if not ip.is_private:
+        url = f"https://ipapi.co/{ip}/json/"
+    else:
+        url = "https://ipapi.co/json/"
+
+    try:
+        response = await http_client.get(url, timeout=5)
+    except Exception:
+        return None
+
+    if response.status_code != 200:
+        log("Failed to get geoloc data from ipapi.co: request failed.", Ansi.LRED)
+        return None
+
+    data = response.json()
+    if data.get("error"):
+        log(f"Failed to get geoloc data from ipapi.co: {data.get('reason')} for ip {ip}.", Ansi.LRED)
+        return None
+
+    country_acronym = data["country_code"].lower()
+    return {
+        "latitude": float(data["latitude"]),
+        "longitude": float(data["longitude"]),
+        "country": {
+            "acronym": country_acronym,
+            "numeric": country_codes[country_acronym],
+        },
+    }
 
 
 def _fetch_geoloc_from_headers(headers: Mapping[str, str]) -> Geolocation | None:
