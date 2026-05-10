@@ -3,8 +3,7 @@ from __future__ import annotations
 import functools
 import hashlib
 from datetime import datetime
-from enum import IntEnum
-from enum import unique
+from enum import IntEnum, unique
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -17,8 +16,7 @@ from app.constants.mods import Mods
 from app.objects.beatmap import Beatmap
 from app.repositories import scores as scores_repo
 from app.usecases.performance import ScoreParams
-from app.utils import escape_enum
-from app.utils import pymysql_encode
+from app.utils import escape_enum, pymysql_encode
 
 if TYPE_CHECKING:
     from app.objects.player import Player
@@ -330,6 +328,7 @@ class Score:
             n100=self.n100,
             n50=self.n50,
             nmiss=self.nmiss,
+            legacy_total_score=self.score,
         )
 
         result = app.usecases.performance.calculate_performances(

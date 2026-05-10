@@ -26,6 +26,7 @@ class ScoreParams:
     ngeki: int | None = None
     nkatu: int | None = None
     nmiss: int | None = None
+    legacy_total_score: int | None = None
 
 
 class PerformanceRating(TypedDict):
@@ -109,6 +110,7 @@ def calculate_performances(
             "n_katu": score.nkatu,
             "misses": score.nmiss,
             "lazer": False,
+            "legacy_total_score": score.legacy_total_score,
         }
 
         score_params = {k: v for k, v in score_params.items() if v is not None}
