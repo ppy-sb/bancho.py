@@ -1921,7 +1921,7 @@ dev = ["pytest (>=8)"]
 type = "git"
 url = "https://github.com/ppy-sb/rosu-pp-py"
 reference = "HEAD"
-resolved_reference = "53487895455ff6326478d58c552b2d1061290465"
+resolved_reference = "9d2e4680a71942ee881343932abb44b0b27f103a"
 
 [[package]]
 name = "scipy"
