@@ -45,7 +45,7 @@ class BeatmapApiResponse(TypedDict):
 
 
 api_get_beatmaps_lb: list[tuple[str, str | None]] = [(("bancho", k)) for k in app.settings.OSU_API_KEYS]
-for i in range(max(1, ceil(len(api_get_beatmaps_lb) / 3))):
+for i in range(max(1, ceil(len(api_get_beatmaps_lb) / 2))):
     api_get_beatmaps_lb.append(("osu.direct", None))
 
 shuffle(api_get_beatmaps_lb)
@@ -95,13 +95,14 @@ def unwrap_osu_direct_api_response(response: httpx.Response) -> BeatmapApiRespon
 
     match response_data:
         case list(l):
-            for (i, beatmap) in enumerate(l):
-                if ("version" not in beatmap): continue
+            for i, beatmap in enumerate(l):
+                if "version" not in beatmap:
+                    continue
                 v = cast(str, beatmap["version"])
                 regex = r"^\[\d+k\] "
-                if not search(regex,v, flags=IGNORECASE):
+                if not search(regex, v, flags=IGNORECASE):
                     continue
-                beatmap["version"] = sub(regex,"",v, flags=IGNORECASE)
+                beatmap["version"] = sub(regex, "", v, flags=IGNORECASE)
             return {"data": l, "status_code": response.status_code}
 
         # {code: int, message: str}
@@ -1024,7 +1025,11 @@ class BeatmapSet:
         # such as ones that're ranked on bancho and won't be updated,
         # and perhaps ones that haven't been updated in a long time.
         if not did_api_request and bmap_set._cache_expired():
-            await bmap_set._update_if_available()
+            try:
+                await bmap_set._update_if_available()
+            except Exception:
+                log(f"Failed to update beatmap set {bsid} from api, temporarily ignoring.", Ansi.LRED)
+                pass
 
         # cache the beatmap set, and beatmaps
         # to be efficient in future requests
