@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Dict, TypedDict
+from typing import TypedDict
 
 from rosu_pp_py import Beatmap, GameMode, Performance
 
@@ -15,11 +15,7 @@ class ScoreParams:
     mode: int
     mods: int | None = None
     combo: int | None = None
-
-    # caller may pass either acc OR 300/100/50/geki/katu/miss
-    # passing both will result in a value error being raised
     acc: float | None = None
-
     n300: int | None = None
     n100: int | None = None
     n50: int | None = None
@@ -56,7 +52,7 @@ class PerformanceResult(TypedDict):
     difficulty: DifficultyRating
 
 
-gm_dict: dict[int, GameMode] = {
+GAME_MODES: dict[int, GameMode] = {
     0: GameMode.Osu,
     1: GameMode.Taiko,
     2: GameMode.Catch,
@@ -65,39 +61,37 @@ gm_dict: dict[int, GameMode] = {
 
 
 def get_mode(mode: int) -> GameMode:
-    return gm_dict[mode]
+    return GAME_MODES[mode]
 
 
 def calculate_performances(
     osu_file_path: str,
     scores: Iterable[ScoreParams],
+    calc_bmap: Beatmap | None = None,
 ) -> list[PerformanceResult]:
-    """\
-    Calculate performance for multiple scores on a single beatmap.
-
-    Typically most useful for mass-recalculation situations.
-
-    TODO: Some level of error handling & returning to caller should be
-    implemented here to handle cases where e.g. the beatmap file is invalid
-    or there an issue during calculation.
-    """
-    calc_bmap = Beatmap(path=osu_file_path)
+    """Calculate performance for multiple scores on a single beatmap."""
+    if calc_bmap is None:
+        calc_bmap = Beatmap(path=osu_file_path)
+    assert calc_bmap is not None
 
     results: list[PerformanceResult] = []
-
     for score in scores:
-        if score.acc and (score.n300 or score.n100 or score.n50 or score.ngeki or score.nkatu):
+        if score.acc and (
+            score.n300 or score.n100 or score.n50 or score.ngeki or score.nkatu
+        ):
             raise ValueError(
                 "Must not specify accuracy AND 300/100/50/geki/katu. Only one or the other.",
             )
 
         # rosupp ignores NC and requires DT
-        if score.mods is not None:
-            if score.mods & Mods.NIGHTCORE:
-                score.mods |= Mods.DOUBLETIME
+        if score.mods is not None and score.mods & Mods.NIGHTCORE:
+            score.mods |= Mods.DOUBLETIME
 
-        # solve for converted maps calculation
-        calc_bmap.convert(get_mode(score.mode), score.mods)
+        score_bmap = calc_bmap
+        if score_bmap.mode != get_mode(score.mode):
+            # Conversion mutates a Beatmap, so never convert the cached original.
+            score_bmap = Beatmap(path=osu_file_path)
+            score_bmap.convert(get_mode(score.mode), score.mods)
 
         score_params = {
             "mods": score.mods or 0,
@@ -112,15 +106,11 @@ def calculate_performances(
             "lazer": False,
             "legacy_total_score": score.legacy_total_score,
         }
-
         score_params = {k: v for k, v in score_params.items() if v is not None}
-        calculator = Performance(**score_params)
-        result = calculator.calculate(calc_bmap)
+        result = Performance(**score_params).calculate(score_bmap)
 
         pp = result.pp
-
         if math.isnan(pp) or math.isinf(pp) or pp > 9999:
-            # TODO: report to logserver
             pp = 0.0
         else:
             pp = round(pp, 3)

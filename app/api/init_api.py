@@ -25,6 +25,7 @@ from app import sb
 import app.bg_loops
 import app.settings
 import app.state
+import app.usecases.performance
 import app.utils
 from app.api import api_router  # type: ignore[attr-defined]
 from app.api import domains
@@ -76,6 +77,11 @@ async def lifespan(asgi_app: BanchoAPI) -> AsyncIterator[None]:
     app.utils.ensure_persistent_volumes_are_available()
 
     app.state.loop = asyncio.get_running_loop()
+    app.usecases.performance.process_pool.start(
+        workers=app.settings.PERFORMANCE_WORKERS,
+        cache_size=app.settings.PERFORMANCE_BMAP_CACHE_SIZE,
+        cache_ttl=app.settings.PERFORMANCE_BMAP_CACHE_TTL,
+    )
 
     if app.utils.is_running_as_admin():
         log(
@@ -112,6 +118,7 @@ async def lifespan(asgi_app: BanchoAPI) -> AsyncIterator[None]:
     # we want to attempt to gracefully finish any ongoing connections
     # and shut down any of the housekeeping tasks running in the background.
     await app.state.sessions.cancel_housekeeping_tasks()
+    await app.usecases.performance.process_pool.stop()
 
     # shutdown services
 

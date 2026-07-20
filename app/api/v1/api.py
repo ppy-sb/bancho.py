@@ -125,7 +125,7 @@ async def api_calculate_pp(
             ),
         )
 
-    results = app.usecases.performance.calculate_performances(
+    results = await app.usecases.performance.calculate_performances(
         str(BEATMAPS_PATH / f"{beatmap.id}.osu"),
         scores,
     )

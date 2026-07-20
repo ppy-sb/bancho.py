@@ -314,7 +314,7 @@ class Score:
         assert num_better_scores is not None
         return num_better_scores + 1
 
-    def calculate_performance(self, beatmap_id: int) -> tuple[float, float]:
+    async def calculate_performance(self, beatmap_id: int) -> tuple[float, float]:
         """Calculate PP and star rating for our score."""
         mode_vn = self.mode.as_vanilla
 
@@ -331,7 +331,7 @@ class Score:
             legacy_total_score=self.score,
         )
 
-        result = app.usecases.performance.calculate_performances(
+        result = await app.usecases.performance.calculate_performances(
             osu_file_path=str(BEATMAPS_PATH / f"{beatmap_id}.osu"),
             scores=[score_args],
         )

@@ -1418,7 +1418,7 @@ class SendPrivateMessage(BasePacket):
                                 for acc in app.settings.PP_CACHED_ACCURACIES
                             ]
 
-                            results = app.usecases.performance.calculate_performances(
+                            results = await app.usecases.performance.calculate_performances(
                                 osu_file_path=str(BEATMAPS_PATH / f"{bmap.id}.osu"),
                                 scores=scores,
                             )

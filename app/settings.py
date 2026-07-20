@@ -51,6 +51,18 @@ DEBUG = read_bool(os.environ["DEBUG"])
 REDIRECT_OSU_URLS = read_bool(os.environ["REDIRECT_OSU_URLS"])
 
 PP_CACHED_ACCURACIES = [int(acc) for acc in read_list(os.environ["PP_CACHED_ACCS"])]
+PERFORMANCE_WORKERS = int(os.environ.get("PERFORMANCE_WORKERS", 4))
+PERFORMANCE_BMAP_CACHE_TTL = float(
+    os.environ.get("PERFORMANCE_BMAP_CACHE_TTL", 300),
+)
+PERFORMANCE_BMAP_CACHE_SIZE = int(os.environ.get("PERFORMANCE_BMAP_CACHE_SIZE", 20))
+
+if PERFORMANCE_WORKERS < 1:
+    raise ValueError("PERFORMANCE_WORKERS must be at least 1")
+if PERFORMANCE_BMAP_CACHE_TTL <= 0:
+    raise ValueError("PERFORMANCE_BMAP_CACHE_TTL must be greater than 0")
+if PERFORMANCE_BMAP_CACHE_SIZE < 1:
+    raise ValueError("PERFORMANCE_BMAP_CACHE_SIZE must be at least 1")
 
 DISALLOWED_NAMES = read_list(os.environ["DISALLOWED_NAMES"])
 DISALLOWED_PASSWORDS = read_list(os.environ["DISALLOWED_PASSWORDS"])

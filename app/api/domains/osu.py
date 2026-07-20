@@ -677,7 +677,7 @@ async def osuSubmitModularSelector(
             expected_md5=bmap.md5,
         )
         if osu_file_available:
-            score.pp, score.sr = score.calculate_performance(bmap.id)
+            score.pp, score.sr = await score.calculate_performance(bmap.id)
 
             if score.passed:
                 await score.calculate_status()
