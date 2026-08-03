@@ -475,3 +475,7 @@ create index users_country_index
 # v5.2.2
 create index scores_fetch_leaderboard_generic_index
 	on scores (map_md5, status, mode);
+
+# v5.3.0
+alter table scores_suspicion modify kind enum('ppcap', 'replay', 'hash', 'report', 'mania') not null;
+
