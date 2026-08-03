@@ -199,10 +199,18 @@ async def validate_mania_replay(score: Score, beatmap: Beatmap, player: Player):
         if not has_relax:
             replay_file = REPLAYS_PATH / f"{score.id}.osr"
             if replay_file.exists():
+                # mania 中谱面 CS = 键数 (4/7/9/16/18K 等); 异常时由
+                # 检测器从回放数据推断, 避免 4K 抬起位被误读为额外列
+                try:
+                    keyc = int(round(beatmap.cs))
+                except (TypeError, ValueError):
+                    keyc = None
+
                 # CPU 密集的解析/检测放入线程池, 避免阻塞事件循环
                 anomaly = await asyncio.to_thread(
                     mania_anticheat.analyze_replay_file,
                     replay_file,
+                    keyc,
                 )
                 if anomaly is not None:
                     detail = anomaly
