@@ -22,6 +22,19 @@ from app.usecases.performance.calculator import calculate_performances
 _STOP = None
 
 
+def _get_mp_context() -> multiprocessing.context.BaseContext:
+    # On POSIX, prefer "fork": workers inherit the parent's memory pages
+    # via copy-on-write, so they don't re-import and duplicate the whole
+    # app (which is what "spawn" does, making each worker's memory usage
+    # roughly equal to the main process). "spawn" is kept as a fallback
+    # for platforms that don't support forking (e.g. Windows).
+    methods = multiprocessing.get_all_start_methods()
+    for method in ("fork", "forkserver", "spawn"):
+        if method in methods:
+            return multiprocessing.get_context(method)
+    return multiprocessing.get_context("spawn")
+
+
 class BeatmapCache:
     def __init__(self, max_size: int, ttl: float) -> None:
         self._max_size = max_size
@@ -99,7 +112,7 @@ class PerformanceProcessPool:
         if self._processes:
             return
 
-        context = multiprocessing.get_context("spawn")
+        context = _get_mp_context()
         self._loop = asyncio.get_running_loop()
         self._result_queue = context.Queue()
         for worker_id in range(workers):
