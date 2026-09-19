@@ -54,19 +54,29 @@ async def flush_caches(
 ) -> Success | Failure:
     """Flush the specified cache."""
     if type == "beatmap":
-        affected_maps: list[Beatmap] = []
+        affected_maps: dict[int, Beatmap] = {}
         if hash := request.query_params.get("hash"):
-            if bmap := app.state.cache.beatmap.get(hash):
-                app.state.cache.beatmap.pop(hash, None)
-                affected_maps.append(bmap)
+            # A beatmap is indexed by both md5 and numeric id. Search values
+            # as well as the md5 key because the md5 can have changed during
+            # an in-place API refresh while the old alias remains present.
+            for key, bmap in app.state.cache.beatmap.items():
+                if key == hash or bmap.md5 == hash:
+                    affected_maps[bmap.id] = bmap
         elif bid := request.query_params.get("bid"):
-            maps = [m for m in app.state.cache.beatmap.values() if m.id == int(bid)]
-            affected_maps.extend(maps)
-            for m in maps:
-                app.state.cache.beatmap.pop(m.md5, None)
+            for bmap in app.state.cache.beatmap.values():
+                if bmap.id == int(bid):
+                    affected_maps[bmap.id] = bmap
         else:
             return responses.failure(message="Either hash or bid must be provided.")
-        affected_sets = set(m.set_id for m in affected_maps)
+
+        for bmap in affected_maps.values():
+            # Remove both the md5 and numeric-id aliases, plus any stale md5
+            # aliases which may point to the same beatmap object.
+            for key, cached in list(app.state.cache.beatmap.items()):
+                if cached.id == bmap.id:
+                    app.state.cache.beatmap.pop(key, None)
+
+        affected_sets = {m.set_id for m in affected_maps.values()}
         for set_id in affected_sets:
             app.state.cache.beatmapset.pop(set_id, None)
         return responses.success({}, meta={"affected": len(affected_maps)})
