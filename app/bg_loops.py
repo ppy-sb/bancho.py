@@ -9,8 +9,10 @@ import app.state
 from app.constants.privileges import Privileges
 from app.logging import Ansi
 from app.logging import log
+from app.objects.beatmap import cleanup_expired_beatmap_cache
 
 OSU_CLIENT_MIN_PING_INTERVAL = 300000 // 1000  # defined by osu!
+BEATMAP_CACHE_CLEANUP_INTERVAL = 60 * 60
 
 
 async def initialize_housekeeping_tasks() -> None:
@@ -26,6 +28,7 @@ async def initialize_housekeeping_tasks() -> None:
                 _remove_expired_donation_privileges(interval=30 * 60),
                 _update_bot_status(interval=5 * 60),
                 _disconnect_ghosts(interval=OSU_CLIENT_MIN_PING_INTERVAL // 3),
+                _cleanup_expired_beatmap_cache(interval=BEATMAP_CACHE_CLEANUP_INTERVAL),
             )
         },
     )
@@ -87,3 +90,16 @@ async def _update_bot_status(interval: int) -> None:
     while True:
         await asyncio.sleep(interval)
         app.packets.bot_stats.cache_clear()
+
+
+async def _cleanup_expired_beatmap_cache(interval: int) -> None:
+    """Keep process-local beatmap caches below their maximum lifetime."""
+    while True:
+        removed_set_count = cleanup_expired_beatmap_cache()
+        if removed_set_count and app.settings.DEBUG:
+            log(
+                f"Removed {removed_set_count} expired beatmap cache set(s).",
+                Ansi.LMAGENTA,
+            )
+
+        await asyncio.sleep(interval)

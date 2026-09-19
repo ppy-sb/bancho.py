@@ -12,6 +12,7 @@ from math import ceil
 from pathlib import Path
 from random import shuffle
 from re import search, sub, IGNORECASE
+from time import monotonic
 from typing import Any, cast
 from typing import TypedDict
 import itertools
@@ -35,6 +36,7 @@ from app.utils import pymysql_encode
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
 
 DEFAULT_LAST_UPDATE = datetime(1970, 1, 1)
+BEATMAP_CACHE_TTL = timedelta(days=7)
 
 IGNORED_BEATMAP_CHARS = dict.fromkeys(map(ord, r':\/*<>?"|'), None)
 
@@ -605,12 +607,20 @@ class Beatmap:
     @staticmethod
     async def _from_md5_cache(md5: str) -> Beatmap | None:
         """Fetch a map from the cache by md5."""
-        return app.state.cache.beatmap.get(md5, None)
+        beatmap = app.state.cache.beatmap.get(md5)
+        if beatmap is not None and beatmap_cache_expired(beatmap.set_id):
+            cleanup_expired_beatmap_cache()
+            return None
+        return beatmap
 
     @staticmethod
     async def _from_bid_cache(bid: int) -> Beatmap | None:
         """Fetch a map from the cache by id."""
-        return app.state.cache.beatmap.get(bid, None)
+        beatmap = app.state.cache.beatmap.get(bid)
+        if beatmap is not None and beatmap_cache_expired(beatmap.set_id):
+            cleanup_expired_beatmap_cache()
+            return None
+        return beatmap
 
 
 class BeatmapSet:
@@ -885,6 +895,9 @@ class BeatmapSet:
     @staticmethod
     async def _from_bsid_cache(bsid: int) -> BeatmapSet | None:
         """Fetch a mapset from the cache by set id."""
+        if bsid in app.state.cache.beatmapset and beatmap_cache_expired(bsid):
+            cleanup_expired_beatmap_cache()
+            return None
         return app.state.cache.beatmapset.get(bsid, None)
 
     @classmethod
@@ -1046,7 +1059,58 @@ def cache_beatmap(beatmap: Beatmap) -> None:
 
 def cache_beatmap_set(beatmap_set: BeatmapSet) -> None:
     """Add the beatmap set, and each beatmap to the cache."""
+    if (
+        app.state.cache.beatmapset.get(beatmap_set.id) is not beatmap_set
+        or beatmap_set.id not in app.state.cache.beatmapset_cached_at
+    ):
+        app.state.cache.beatmapset_cached_at[beatmap_set.id] = monotonic()
+
     app.state.cache.beatmapset[beatmap_set.id] = beatmap_set
 
     for beatmap in beatmap_set.maps:
         cache_beatmap(beatmap)
+
+
+def cleanup_expired_beatmap_cache(now: float | None = None) -> int:
+    """Remove beatmap sets and aliases older than the in-memory cache TTL."""
+    current_time = monotonic() if now is None else now
+    expired_set_ids = {
+        set_id
+        for set_id in app.state.cache.beatmapset
+        if (
+            set_id not in app.state.cache.beatmapset_cached_at
+            or current_time - app.state.cache.beatmapset_cached_at[set_id]
+            >= BEATMAP_CACHE_TTL.total_seconds()
+        )
+    }
+
+    removed_set_count = 0
+    for set_id in expired_set_ids:
+        if app.state.cache.beatmapset.pop(set_id, None) is not None:
+            removed_set_count += 1
+        app.state.cache.beatmapset_cached_at.pop(set_id, None)
+
+        for key, beatmap in list(app.state.cache.beatmap.items()):
+            if beatmap.set_id == set_id:
+                app.state.cache.beatmap.pop(key, None)
+
+    # Clean aliases whose set was removed by another invalidation path.
+    cached_set_ids = app.state.cache.beatmapset.keys()
+    for key, beatmap in list(app.state.cache.beatmap.items()):
+        if beatmap.set_id not in cached_set_ids:
+            app.state.cache.beatmap.pop(key, None)
+
+    return removed_set_count
+
+
+def beatmap_cache_expired(set_id: int, now: float | None = None) -> bool:
+    """Return whether a cached beatmap set has reached its maximum age."""
+    if set_id not in app.state.cache.beatmapset:
+        return True
+
+    cached_at = app.state.cache.beatmapset_cached_at.get(set_id)
+    if cached_at is None:
+        return True
+
+    current_time = monotonic() if now is None else now
+    return current_time - cached_at >= BEATMAP_CACHE_TTL.total_seconds()
