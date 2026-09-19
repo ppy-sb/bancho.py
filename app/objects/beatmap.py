@@ -650,6 +650,7 @@ class BeatmapSet:
       BeatmapSet._cache_expired() -> bool
       await BeatmapSet._update_if_available() -> None
       await BeatmapSet._save_to_sql() -> None
+      await BeatmapSet._update_from_api_to_sql() -> None
     """
 
     def __init__(
@@ -761,7 +762,13 @@ class BeatmapSet:
                     if old_map.md5 != new_map["file_md5"] or old_map.status != new_ranked_status:
                         # update map from old_maps
                         bmap = old_maps[old_id]
+                        old_md5 = bmap.md5
                         bmap._parse_from_osuapi_resp(new_map)
+                        if (
+                            old_md5 != bmap.md5
+                            and app.state.cache.beatmap.get(old_md5) is bmap
+                        ):
+                            app.state.cache.beatmap.pop(old_md5)
                         updated_maps.append(bmap)
                     else:
                         # map is the same, make no changes
@@ -815,7 +822,7 @@ class BeatmapSet:
             )
 
             # update maps in sql
-            await self._save_to_sql()
+            await self._update_from_api_to_sql()
         elif api_data["status_code"] in (404, 200):
             # NOTE: 200 can return an empty array of beatmaps,
             #       so we still delete in this case if the beatmap data is None
@@ -847,7 +854,7 @@ class BeatmapSet:
     async def _save_to_sql(self) -> None:
         """Save the object's attributes into the database."""
         await app.state.services.database.execute_many(
-            "REPLACE INTO maps ("
+            "INSERT INTO maps ("
             "md5, id, server, set_id, "
             "artist, title, version, creator, "
             "filename, last_update, total_length, "
@@ -861,7 +868,29 @@ class BeatmapSet:
             ":max_combo, :status, :frozen, "
             ":plays, :passes, :mode, :bpm, "
             ":cs, :od, :ar, :hp, :diff"
-            ")",
+            ") AS incoming "
+            "ON DUPLICATE KEY UPDATE "
+            "status = incoming.status, "
+            "frozen = incoming.frozen, "
+            "md5 = incoming.md5, "
+            "set_id = incoming.set_id, "
+            "artist = incoming.artist, "
+            "title = incoming.title, "
+            "version = incoming.version, "
+            "creator = incoming.creator, "
+            "filename = incoming.filename, "
+            "last_update = incoming.last_update, "
+            "total_length = incoming.total_length, "
+            "max_combo = incoming.max_combo, "
+            "plays = incoming.plays, "
+            "passes = incoming.passes, "
+            "mode = incoming.mode, "
+            "bpm = incoming.bpm, "
+            "cs = incoming.cs, "
+            "od = incoming.od, "
+            "ar = incoming.ar, "
+            "hp = incoming.hp, "
+            "diff = incoming.diff",
             [
                 {
                     "md5": bmap.md5,
@@ -878,6 +907,74 @@ class BeatmapSet:
                     "max_combo": bmap.max_combo,
                     "status": bmap.status,
                     "frozen": bmap.frozen,
+                    "plays": bmap.plays,
+                    "passes": bmap.passes,
+                    "mode": bmap.mode,
+                    "bpm": bmap.bpm,
+                    "cs": bmap.cs,
+                    "od": bmap.od,
+                    "ar": bmap.ar,
+                    "hp": bmap.hp,
+                    "diff": bmap.diff,
+                }
+                for bmap in self.maps
+            ],
+        )
+
+    async def _update_from_api_to_sql(self) -> None:
+        """Save an API refresh without changing an existing frozen state."""
+        await app.state.services.database.execute_many(
+            "INSERT INTO maps ("
+            "md5, id, server, set_id, "
+            "artist, title, version, creator, "
+            "filename, last_update, total_length, "
+            "max_combo, status, "
+            "plays, passes, mode, bpm, "
+            "cs, od, ar, hp, diff"
+            ") VALUES ("
+            ":md5, :id, :server, :set_id, "
+            ":artist, :title, :version, :creator, "
+            ":filename, :last_update, :total_length, "
+            ":max_combo, :status, "
+            ":plays, :passes, :mode, :bpm, "
+            ":cs, :od, :ar, :hp, :diff"
+            ") AS incoming "
+            "ON DUPLICATE KEY UPDATE "
+            "status = IF(maps.frozen = 1, maps.status, incoming.status), "
+            "md5 = incoming.md5, "
+            "set_id = incoming.set_id, "
+            "artist = incoming.artist, "
+            "title = incoming.title, "
+            "version = incoming.version, "
+            "creator = incoming.creator, "
+            "filename = incoming.filename, "
+            "last_update = incoming.last_update, "
+            "total_length = incoming.total_length, "
+            "max_combo = incoming.max_combo, "
+            "plays = incoming.plays, "
+            "passes = incoming.passes, "
+            "mode = incoming.mode, "
+            "bpm = incoming.bpm, "
+            "cs = incoming.cs, "
+            "od = incoming.od, "
+            "ar = incoming.ar, "
+            "hp = incoming.hp, "
+            "diff = incoming.diff",
+            [
+                {
+                    "md5": bmap.md5,
+                    "id": bmap.id,
+                    "server": "osu!",
+                    "set_id": bmap.set_id,
+                    "artist": bmap.artist,
+                    "title": bmap.title,
+                    "version": bmap.version,
+                    "creator": bmap.creator,
+                    "filename": bmap.filename,
+                    "last_update": bmap.last_update,
+                    "total_length": bmap.total_length,
+                    "max_combo": bmap.max_combo,
+                    "status": bmap.status,
                     "plays": bmap.plays,
                     "passes": bmap.passes,
                     "mode": bmap.mode,
