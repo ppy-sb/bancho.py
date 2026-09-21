@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import struct
 from pathlib import Path
@@ -20,6 +21,7 @@ from app.objects.player import Player
 from app.objects.score import Score
 from app.repositories import scores_suspicion
 from app.repositories.scores_suspicion import SuspicionKind
+from app.usecases import mania_anticheat
 
 REPLAYS_PATH = Path.cwd() / ".data/osr"
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
@@ -185,7 +187,68 @@ async def validate_checksum(
         await _save_suspicion(player, score, SuspicionKind.HASH, error.args[0], detail)
 
 
+async def validate_mania_replay(score: Score, beatmap: Beatmap, player: Player):
+    """对 mania 回放执行 pressing time 异常检测 (仅记录 suspicion).
+
+    circleguard 的 UR/snaps 基于 2D 距离计算, 对 mania 无意义, 故跳过.
+    """
+    try:
+        detail: dict = {}
+
+        has_relax = score.mods & Mods.RELAX or score.mods & Mods.AUTOPILOT
+        if not has_relax:
+            replay_file = REPLAYS_PATH / f"{score.id}.osr"
+            if replay_file.exists():
+                # mania 中谱面 CS = 键数 (4/7/9/16/18K 等); 异常时由
+                # 检测器从回放数据推断, 避免 4K 抬起位被误读为额外列
+                try:
+                    keyc = int(round(beatmap.cs))
+                except (TypeError, ValueError):
+                    keyc = None
+
+                # CPU 密集的解析/检测放入线程池, 避免阻塞事件循环
+                anomaly = await asyncio.to_thread(
+                    mania_anticheat.analyze_replay_file,
+                    replay_file,
+                    keyc,
+                )
+                if anomaly is not None:
+                    detail = anomaly
+                    # 玩家确认制: 该玩家已有 mania suspicion 时, 本次记录升级为确认级
+                    prev_suspicions = await scores_suspicion.count_mania_suspicion(
+                        player.id,
+                    )
+                    anomaly["confirmed"] = prev_suspicions > 0
+
+                    await _save_suspicion(
+                        player,
+                        score,
+                        SuspicionKind.MANIA,
+                        f"mania pressing-time anomaly (criteria: {anomaly['criteria']})",
+                        anomaly,
+                    )
+
+        # ppcap 检查对所有模式生效, 保持原行为
+        if score.bmap and score.bmap.awards_ranked_pp and score.pp > PPCAP[score.mode]:
+            await _save_suspicion(
+                player,
+                score,
+                SuspicionKind.PPCAP,
+                f"ppcap threshold exceeded (pp: {score.pp:.2f} / {PPCAP[score.mode]})",
+                detail,
+            )
+    except Exception as e:
+        log(
+            f"Failed to check the mania score ({score.id} by {player.name}) due to {repr(e)}, skipped.",
+            Ansi.RED,
+        )
+
+
 async def validate_replay(score: Score, beatmap: Beatmap, player: Player):
+    if score.mode.as_vanilla == GameMode.VANILLA_MANIA:
+        await validate_mania_replay(score, beatmap, player)
+        return
+
     try:
         has_relax = score.mods & Mods.RELAX or score.mods & Mods.AUTOPILOT
         replay, slider_beatmap = _parse_score(score, beatmap, player)

@@ -14,6 +14,7 @@ class SuspicionKind(StrEnum):
     REPLAY = "replay"
     HASH = "hash"
     REPORT = "report"
+    MANIA = "mania"
 
 class ScoresSuspicionTable(Base):
     __tablename__ = "scores_suspicion"
@@ -71,5 +72,16 @@ async def has_suspicion(user_id) -> bool:
         WHERE us.id=:user_id",
         {"user_id": user_id}
     )
-    
+
+
+async def count_mania_suspicion(user_id) -> int:
+    """统计该玩家已有的 mania 按压异常 suspicion 数量."""
+    row = await app.state.services.database.fetch_one(
+        "SELECT COUNT(*) AS cnt FROM scores_suspicion su \
+        JOIN scores sc ON su.score_id=sc.id \
+        WHERE sc.userid=:user_id AND su.kind=:kind",
+        {"user_id": user_id, "kind": SuspicionKind.MANIA}
+    )
+    return int(row["cnt"]) if row and row["cnt"] is not None else 0
+
     
