@@ -6,10 +6,7 @@ import app.settings
 import app.state
 import app.usecases.performance
 import app.utils
-from app.commands import CommandSet
-from app.commands import Context
-from app.commands import command_sets
-from app.commands import help_pure
+from app.commands import CommandSet, Context, command_sets, help_pure
 from app.constants.privileges import Privileges
 
 streamer_commands = CommandSet("streamer", "Streamer commands.")
@@ -30,9 +27,9 @@ async def streamer_help(ctx: Context) -> str | None:
 async def streamer_mode(ctx: Context) -> str | None:
     """Check status, enable or disable streamer mode."""
     kw = ctx.args[0] if len(ctx.args) >= 1 else None
-    match (kw):
+    match kw:
         case "status" | "stat" | None:
-            return f"""Streamer mode is {'on.' if ctx.player.id in app.state.sessions.streaming_players and app.state.sessions.streaming_players[ctx.player.id] else 'off.'}
+            return f"""Streamer mode is {"on." if ctx.player.id in app.state.sessions.streaming_players and app.state.sessions.streaming_players[ctx.player.id] else "off."}
 Use !streamer mode [on|off] to toggle."""
         case "on" | "off":
             stat = kw == "on"
