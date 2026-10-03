@@ -27,6 +27,7 @@ from app.constants.mods import Mods
 from app.constants.privileges import Privileges
 from app.objects.beatmap import (
     Beatmap,
+    RankedStatus,
     disk_has_expected_osu_file,
     ensure_osu_file_is_available,
 )
@@ -47,6 +48,9 @@ async def user_best_scores(
     *,
     email: str = Query(..., min_length=3, max_length=254),
     mode: int = Query(..., ge=0, le=11),
+    rank: Literal["ranked", "all"] = Query("ranked"),
+    limit: int = Query(100, ge=1, le=200),
+    offset: int = Query(0, ge=0),
     token: HTTPCredentials | None = Depends(http_bearer_scheme),
 ) -> Response:
     """Return up to 200 best scores for the unrestricted user with this email."""
@@ -64,19 +68,26 @@ async def user_best_scores(
         select(*READ_PARAMS, UsersTable.name.label("user_name"))
         .select_from(ScoresTable)
         .join(UsersTable, UsersTable.id == ScoresTable.userid)
+        .join(MapsTable, MapsTable.md5 == ScoresTable.map_md5)
         .where(
             UsersTable.email == email.strip(),
             UsersTable.priv.op("&")(Privileges.UNRESTRICTED.value) != 0,
             ScoresTable.mode == mode,
             ScoresTable.status == 2,
         )
-        .order_by(
-            ScoresTable.pp.desc(),
-            ScoresTable.score.desc(),
-            ScoresTable.id.desc(),
-        )
-        .limit(200)
     )
+    if rank == "ranked":
+        query = query.where(
+            MapsTable.status.in_(
+                (RankedStatus.Ranked, RankedStatus.Approved, RankedStatus.Qualified),
+            ),
+        )
+    query = query.order_by(
+        ScoresTable.pp.desc(),
+        ScoresTable.score.desc(),
+        ScoresTable.id.desc(),
+    )
+    query = query.limit(limit).offset(offset)
     rows = await app.state.services.database.fetch_all(query)
 
     def serialize(row: dict[str, Any]) -> dict[str, Any]:
@@ -118,6 +129,8 @@ async def map_best_scores(
     country: str | None = Query(None, min_length=2, max_length=2),
     mods: int | None = Query(None, ge=0),
     rank: Literal["score", "pp"] = Query("score"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
     token: HTTPCredentials | None = Depends(http_bearer_scheme),
 ) -> Response:
     if (
@@ -154,7 +167,7 @@ async def map_best_scores(
     metric = ScoresTable.pp if rank == "pp" else ScoresTable.score
     query = query.order_by(
         metric.desc(), ScoresTable.score.desc(), ScoresTable.id.desc()
-    ).limit(200)
+    ).limit(limit).offset(offset)
     rows = await app.state.services.database.fetch_all(query)
     scores = []
     for row in rows:
