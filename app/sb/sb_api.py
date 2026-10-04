@@ -278,10 +278,6 @@ async def score_writeback(
     bmap = await Beatmap.from_md5(payload.map_hash)
     if bmap is None:
         return ORJSONResponse({"status": "Beatmap unavailable."}, status_code=422)
-    if await stats_repo.fetch_one(user["id"], payload.mode) is None:
-        return ORJSONResponse(
-            {"status": "Score mode unavailable for account."}, status_code=422
-        )
     source_pp = 0.0
     if payload.passed:
         if not await ensure_osu_file_is_available(
